@@ -1,4 +1,7 @@
 # cpp-pipeline-engine
+[![CI](https://github.com/SandraKanna/cpp-pipeline-engine/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/SandraKanna/cpp-pipeline-engine/actions/workflows/ci.yml)
+
+
 > 🚧 Project under construction
 
 **Description:** a modular C++ library used to build data processing pipelines. It acts as an interface for other applications to read data from different sources, easily transform it and export it to different destinations.

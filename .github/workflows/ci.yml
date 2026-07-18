@@ -1,0 +1,44 @@
+name: CI
+
+# Triggers: validate main after every merge (push) and every PR before merging.
+# `branches` under pull_request filters by the PR's *target* branch.
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+# Cancel superseded runs to save CI minutes:
+# - PRs: group by PR number -> a new push cancels the previous run.
+# - main: group by run_id (unique) -> every run completes, keeping full build history.
+# (`cond && A || B` is the poor man's ternary; Actions has no real one.)
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    # Fresh, disposable VM per job. Ubuntu runners ship gcc/clang/cmake/ninja.
+    runs-on: ubuntu-latest
+    strategy:
+      # Don't cancel the sibling job if one compiler fails:
+      # "fails on gcc but not clang" is diagnostic info (probably undefined behavior).
+      fail-fast: false
+      # One independent job per compiler. Building with both is the cheap way
+      # to ensure we write standard C++, not one compiler's dialect.
+      matrix:
+        compiler: [gcc, clang]
+    steps:
+    # The runner VM starts with an empty filesystem; this step clones the repo into it.
+    - uses: actions/checkout@v7
+
+    # All build logic (flags, warnings-as-error, compiler choice) lives in
+    # CMakePresets.json, not here: any CI failure is reproducible locally
+    # with the exact same command. The CI is a dumb orchestrator.
+    # ${{ matrix.compiler }} expands to gcc/clang -> preset ci-gcc / ci-clang.
+    - name: Configure
+      run: cmake --preset ci-${{ matrix.compiler }}
+    - name: Build
+      run: cmake --build --preset ci-${{ matrix.compiler }}
