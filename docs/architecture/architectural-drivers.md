@@ -19,6 +19,7 @@ documentation are part of the deliverable itself: they are meant to be read, not
 - Different types of data must flow through the same pipeline. This requires a **common data model** that all components share.
 - The user must be able to build a pipeline **at runtime**, without recompiling, as common data pipeline tools do (cf. [Kafka Connect](https://kafka.apache.org/41/kafka-connect/user-guide/), which builds entire pipelines from JSON/Properties config against a running service).
 - The user shouldn't pay the cost of features they don't use. Heavy dependencies (like future cloud integrations) must be separated from the core, so the architecture needs **optional modules** with their own boundaries.
+- The tool must handle unbounded or arbitrarily large data (logs, sensor streams): input cannot be assumed to fit in memory.
 
 ## Quality attributes (prioritized)
 
