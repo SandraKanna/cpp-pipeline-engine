@@ -52,3 +52,34 @@ Not decided yet: how each error class is represented in the type system (excepti
 
 ### Error handling
 Not decided yet: what runtime behavior each error class triggers (fail fast vs. skip vs. route to a separate destination). Deferred (YAGNI).
+
+
+## Dependency sequencing
+
+### Reversal cost
+
+| Category | Reversal cost | Why |
+|---|---|---|
+| Data model | High | It's the type flowing through the entire public API; changing it breaks interfaces, third-party components, and the error model. |
+| Execution model | High | The contract of Source/Transform/Sink assumes streaming pull-based; switching to batch changes the contract shape, not just the internal implementation. |
+| Error modeling & handling | High | Swapping Result<T> for exceptions (or vice versa) touches all code, including third-party components already written against it. |
+| Extensibility | High | Defines the contract any component (own or third-party) must satisfy; changing it breaks everything already written against that contract. |
+| API usability | High | It's the public-facing surface; changing it directly inconveniences users already relying on it. |
+| Module isolation | Medium | Reversible (it's a matter of directory/target organization), but costly if delayed: reorganizing existing modules and CMakeLists takes real work, though it doesn't break usage contracts. |
+| Testability | Low | Not a decision with content of its own — it's a consequence of how the other decisions are designed. Can be applied at any point with no real reversal cost. |
+
+
+### Dependencies graph
+
+<p align="center">
+  <img src="dependencies-graph.png" alt="Dependencies graph" width="500">
+</p>
+
+1. **Data model** — no dependencies. Defines the type that flows through the pipeline; every other decision references it.
+2. **Execution model** — depends on (1). You can't decide how data moves without first knowing what that data is.
+3. **Error modeling & handling** — depends on (2). Per-record error policies (skip/fail/route) only make sense once records are known to be processed one at a time (streaming). A batch model would frame the question differently.
+4. **Extensibility** — depends on (1), (2), (3). A user-defined component must satisfy one contract, and that contract already bundles: what it receives (1), when it's called (2), and what an error looks like (3).
+5. **API usability** — depends on (4). The public-facing builder can only be designed once the underlying components and their contract already exist.
+6. **Module isolation** — depends on (1) and (4) specifically, not (2) or (3). You need to know what kinds of components exist (1) and how a user adds their own (4) to decide which compilation module each one belongs to. Execution model and error handling don't affect where a component physically lives.
+
+> **Testability** is not part of the sequence — it's a transversal practice. It starts as soon as something testable exists (once 1 and 2 have a first shape) and re-applies to every piece of code added afterward, rather than occupying a fixed position.
