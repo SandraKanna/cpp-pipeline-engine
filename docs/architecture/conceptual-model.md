@@ -6,7 +6,7 @@ This document describes what the tool does, in four stages from the most general
 
 <p align="center"><img src="img/stage-0_context.png" alt="Context diagram" width="700"></p>
 
-Source data arrives in different formats; the library filters and transforms it and produces a standardized output in a single format. Binary data (images, audio) is not accepted. Analysis (aggregating, joining sources, computing statistics) is deliberately left out: the tool produces homogeneous output *so that* other tools can analyze it.
+Source data arrives in different formats; the library validates, filters and transforms it and produces a standardized output in a single format. 
 
 ## Stage 1 — Characterizing the input
 
@@ -18,13 +18,15 @@ Two independent axes: the acquisition channel (local or network) and the nature 
 
 <p align="center"><img src="img/stage-2_internal-flow.png" alt="Internal flow and library boundary" width="700"></p>
 
-Configuration is provided by the user once, before any data flows, and defines every stage. Errors and logs are transversal: they occur at every stage and are observable from outside the library. Acquisition sits at the boundary: the library ships its own implementations and the user can provide theirs.
+Four blocks make up the internal flow: `acquisition`, `extraction`, `processing`, and `output`. Configuration is provided by the user once, before any data flows, and defines every stage. Errors and logs are transversal: they occur at every stage and are observable from outside the library. `acquisition` and `output` are the two blocks that touch the outside world — the library ships its own implementations for both, and the user can provide their own. `extraction` and `processing` know nothing about where the bytes came from or where they will end up.
 
 ## Stage 3 — Responsibilities
 
 <p align="center"><img src="img/stage-3_responsibilities.png" alt="Responsibilities and data states" width="700"></p>
 
-From here on, `extraction` is named `deserialization`, and `output` splits into `serialization` and `delivery`.
+The two outer blocks of the previous stage are opened here: what the diagram above calls `extraction` is `deserialization`, and `output` splits into `serialization` and `delivery`.
+
+A *record* is a single entry made up of named fields: one row of a CSV, one JSON object, one parsed log line.
 
 | Responsibility | What it does |
 |---|---|

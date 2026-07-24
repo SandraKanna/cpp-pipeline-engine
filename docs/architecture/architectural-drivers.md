@@ -15,11 +15,11 @@ documentation are part of the deliverable itself: they are meant to be read, not
 
 ## Functional requirements that shape the architecture
 
-- The user must be able to write their own components (source/transform/sink) and combine them with the library's. This requires **stable contracts** (public interfaces) so the user never needs to know the internal logic of the tool.
-- Different types of data must flow through the same pipeline. This requires a **common data model** that all components share.
-- The user must be able to build a pipeline **at runtime**, without recompiling, as common data pipeline tools do (cf. [Kafka Connect](https://kafka.apache.org/41/kafka-connect/user-guide/), which builds entire pipelines from JSON/Properties config against a running service).
-- The user shouldn't pay the cost of features they don't use. Heavy dependencies (like future cloud integrations) must be separated from the core, so the architecture needs **optional modules** with their own boundaries.
-- The tool must handle unbounded or arbitrarily large data (logs, sensor streams): input cannot be assumed to fit in memory.
+1. The user must be able to write their own components (e.g. source/transform/sink) and combine them with the library's. This requires **stable contracts** (public interfaces) so the user never needs to know the internal logic of the tool.
+2. Different types of data must flow through the same pipeline. This requires a **common data model** that all components share.
+3. The user must be able to build a pipeline **at runtime**, without recompiling, as common data pipeline tools do (cf. [Kafka Connect](https://kafka.apache.org/41/kafka-connect/user-guide/), which builds entire pipelines from JSON/Properties config against a running service).
+4. The user shouldn't pay the cost of features they don't use. Heavy dependencies (like future cloud integrations) must be separated from the core, so the architecture needs **optional modules** with their own boundaries.
+5. The tool must handle unbounded or arbitrarily large data (logs, sensor streams): input cannot be assumed to fit in memory.
 
 ## Quality attributes (prioritized)
 
@@ -34,7 +34,7 @@ documentation are part of the deliverable itself: they are meant to be read, not
 
 ## Constraints
 
-- The stack is fixed from day 1: C++20, CMake, GoogleTest, clang-format/clang-tidy, GitHub Actions. Rationale: modern, industry-standard tooling, aligned with the project's showcase purpose.
+- The stack is fixed from day 1: C++20, CMake, GoogleTest, GMock clang-format/clang-tidy, GitHub Actions. Rationale: modern, industry-standard tooling, aligned with the project's showcase purpose.
 - AWS integration is part of the vision; it will arrive incrementally, and its pace depends on my learning curve (currently doing the AWS Cloud Practitioner training).
 - This is a one-person project: time and resources are limited, which favors small iterations and simplicity.
 
