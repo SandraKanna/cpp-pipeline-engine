@@ -9,7 +9,7 @@ This backlog maps the architectural drivers (see `architectural-drivers.md`) to 
 See [conceptual model](conceptual-model.md) for what a *record* is. What it is made of in the type system is decided at the logical level below.
 
 ### Logical level
-Going one level deeper, from functional drivers 2 and 3 we can derive that a record cannot be static-generic (no templates): the user must be able to choose among different data types at runtime, without recompiling (driver 3). This requires some form of dynamically-resolved type: `std::variant` (closed set), `std::any` (open type-erasure), or polymorphic inheritance.
+Going one level deeper, from functional drivers 2 and 3 we can derive that the type of a record cannot be fixed at compile time: the user must be able to choose among different data types at runtime, without recompiling (driver 3). This requires some form of dynamically-resolved type.
 
 ### Physical level
 
@@ -21,7 +21,7 @@ Functional driver 5 states that the library must be able to handle unbounded or 
 The [Pipe and Filter](https://www.geeksforgeeks.org/system-design/pipe-and-filter-architecture-system-design/) pattern lists performance overhead and latency among its known drawbacks, since data moves from stage to stage. Whether that cost is acceptable here is part of this decision.
 
 ## Error modeling & handling
-As the project's context highlights, this is meant to be a production-ready deliverable, meaning it will run against real files, which will very likely contain inconsistencies: misspelled fields, corrupted rows, missing separators, files that don't exist, etc. (Scope also lists CSV, JSON and sensor messages as expected input sources, and driver 5 adds logs to that list, all notoriously imperfect in practice.)
+As the project's context highlights, this is meant to be a production-ready deliverable, meaning it will run against real-world input, which will very likely contain inconsistencies: misspelled fields, corrupted rows, missing separators, files that don't exist, etc. All the expected input sources (CSV, JSON and sensor messages, logs) are imperfect in practice.
 
 At least two different classes of error need to be distinguished (not yet decided which policy applies to which, deferred to the dedicated ADR):
 
@@ -79,8 +79,8 @@ From quality attributes 2 (testability) and 1 (extensibility). Quality attribute
 
 1. **Data model** — no dependencies. Defines the type that flows through the pipeline; every other decision references it.
 2. **Execution model** — depends on (1). You can't decide how data moves without first knowing what that data is.
-3. **Error modeling & handling** — depends on (2). Per-record error policies (skip/fail/route) only make sense once records are known to be processed one at a time (streaming). A batch model would frame the question differently.
-4. **Extensibility** — depends on (1), (2), (3). A user-defined component must satisfy one contract, and that contract already bundles: what it receives (1), when it's called (2), and what an error looks like (3).
+3. **Error modeling & handling** — depends on (2). How an error is modeled and handled depends on whether records are processed one at a time or in bulk, which is exactly what decision (2) settles.
+4. **Extensibility** — depends on (1), (2), (3). A user-defined component must fit into the pipeline, which already determines what it receives (1), when it's called (2), and what an error looks like (3).
 5. **API usability** — depends on (4). The public-facing builder can only be designed once the underlying components and their contract already exist.
 6. **Module isolation** — depends on (1) and (4) specifically, not (2) or (3). You need to know what kinds of components exist (1) and how a user adds their own (4) to decide which compilation module each one belongs to. Execution model and error handling don't affect where a component physically lives.
 
