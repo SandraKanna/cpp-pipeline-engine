@@ -2,9 +2,11 @@
 
 ## Status
 
-proposed
+accepted
 
-**Date:** July 22nd 2026
+**Opened:** July 22nd 2026
+
+**Closed:** July 22nd 2026
 
 ## Context
 
