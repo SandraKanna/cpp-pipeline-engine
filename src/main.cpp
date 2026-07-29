@@ -1,5 +1,59 @@
 #include <iostream>
+#include <cpe/data_model.hpp>
 
 int main () {
-    std::cout << "cpp-pipeline-engine (cpe)";
+	std::cout << "--- cpp-pipeline-engine (cpe) ---\n\n";
+
+	// ----- Value ----- //
+
+	cpe::Value number = 3.14;
+	cpe::Value text = std::string("hello");
+	cpe::Value flag = true;
+	cpe::Value empty = std::monostate{};
+
+	std::cout << std::boolalpha; // prints booleans as true/false instead of 1/0
+
+	std::cout << "number is double: "
+			  << std::holds_alternative<double>(number) << '\n';
+
+	std::cout << "text is string: "
+			  << std::holds_alternative<std::string>(text) << '\n';
+
+	std::cout << "flag is bool: "
+			  << std::holds_alternative<bool>(flag) << '\n';
+
+	std::cout << "empty is null: "
+			  << std::holds_alternative<std::monostate>(empty) << "\n\n";
+
+	// ----- Record ----- //
+
+	cpe::Record record;
+
+	std::cout << "Insert 'pi': "
+			  << record.set("pi", number) << '\n';
+
+	std::cout << "Insert duplicate 'pi': "
+			  << record.set("pi", 42.0) << '\n';
+
+	std::cout << "Contains 'pi': "
+			  << record.contains("pi") << '\n';
+
+	std::cout << "Contains 'answer': "
+			  << record.contains("answer") << '\n';
+
+	if (record.get("pi")) {
+		std::cout << "'pi' exists\n";
+	}
+
+	if (record.get("missing") == nullptr) {
+		std::cout << "'missing' not found\n";
+	}
+
+	record.set("num", 42.0);
+	record.set("string", "this is a string");
+
+	std::cout << "\nFields:\n";
+	for (const auto& [name, value] : record) {
+		std::cout << " - " << name << '\n';
+	}
 }
