@@ -90,9 +90,10 @@ namespace cpe {
 		return (std::equal(f1.begin(), f1.end(), f2.begin(), f2.end()));
 	}
 
-	// this overload lets a Value be compared directly against a scalar (number == 3.14)
+	// Value equality, including comparison against a raw scalar (value == 99.99).
+	// The inherited std::variant operator== is a template and cannot convert the
+	// raw operand to Value; this non-template overload can.
 	bool operator==(Value const& v1, Value const& v2) {
-		// reuses the variant's own comparison
 		return (static_cast<Value::variant const&>(v1) == static_cast<Value::variant const&>(v2));
 	}
 
