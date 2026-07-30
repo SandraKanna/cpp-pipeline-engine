@@ -2,7 +2,9 @@
 #include <algorithm> // std::any_of std::find_if
 
 namespace cpe {
+
 	bool Fields::set(std::string const& field, Value const& value) {
+		// set() forbids duplicate names (ADR-003), so the first match is the only match
 		if (contains(field))
 			return (false);
 		entries_.emplace_back(field, value); // faster than push_back, builds the pair directly in the vector
@@ -39,6 +41,8 @@ namespace cpe {
 		return entries_.end(); 
 	}
 
+	// ----- OVERLOAD ----- //
+
 	std::ostream& operator<<(std::ostream& o, Fields const& f) {
 		bool first = true;
 		o << "{";
@@ -55,11 +59,11 @@ namespace cpe {
 	std::ostream& operator<<(std::ostream& o, Value const& v) {
 		std::visit([&o](auto&& arg) {
 			using T = std::decay_t<decltype(arg)>;
+			// if constexpr: only the branch matching T is compiled (a plain if would compile all)
 			if constexpr (std::is_same_v<T, std::monostate>)
 				o << "null";
 			else if constexpr (std::is_same_v<T, bool>)
 				o << std::boolalpha << arg;
-				// o << (arg? "true" : "false");
 			else if constexpr (std::is_same_v<T, double>)
 				o << arg;
 			else if constexpr (std::is_same_v<T, std::string>)
@@ -79,6 +83,17 @@ namespace cpe {
 			}
 		}, v);
 		return (o);
+	}
+
+	bool operator==(Fields const& f1, Fields const& f2) {
+		// std::equal compares element by element in order; order matters here (ADR-003)
+		return (std::equal(f1.begin(), f1.end(), f2.begin(), f2.end()));
+	}
+
+	// this overload lets a Value be compared directly against a scalar (number == 3.14)
+	bool operator==(Value const& v1, Value const& v2) {
+		// reuses the variant's own comparison
+		return (static_cast<Value::variant const&>(v1) == static_cast<Value::variant const&>(v2));
 	}
 
 } // namespace cpe

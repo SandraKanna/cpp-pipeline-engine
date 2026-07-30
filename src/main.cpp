@@ -77,6 +77,12 @@ int main () {
 	cpe::Record record2;
 	record2.set("address", addr);
 	record2.set("scores", std::vector<cpe::Value>{1.0, 2.0, 3.0});
-	std::cout << record2;
+	std::cout << record2 << std::endl;
 
+	// ----- equality comparison overload ----- //
+	std::cout << "\nrecord == record2: " << (record == record2) << std::endl;
+	std::cout << "record2 == record2: " << (record2 == record2) << std::endl;
+	std::cout << "text == text: "     << (text == "new text") << std::endl;
+	std::cout << "number == Value(90.0): "    << (number == cpe::Value(90.0)) << std::endl;
+	std::cout << "number == 99.99: "    << (number == 99.99) << std::endl;
 }

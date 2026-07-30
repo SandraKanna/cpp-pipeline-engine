@@ -25,7 +25,7 @@ namespace cpe {
 		// noexcept promises no exception will be thrown
 		[[nodiscard]] bool contains(std::string const& field) const noexcept;
 	 	
-		// `using` to create aliases for iterator types
+		// `using` to create aliases for iterator types (better readability)
 		using iterator = std::vector<std::pair<std::string, Value>>::iterator;
 		using const_iterator = std::vector<std::pair<std::string, Value>>::const_iterator;
 		iterator begin();
@@ -37,14 +37,17 @@ namespace cpe {
 		std::vector<std::pair<std::string, Value>> entries_;
 	};
 
+	// overloading stream insertion for easier values & fields printing
+	std::ostream& operator<<(std::ostream& o, Fields const& f);
+	std::ostream& operator<<(std::ostream& o, Value const& v);
+	
+	// overloading equality comparison operator for Fields
+	bool operator==(Fields const& f1, Fields const& f2);
+
 	// Record and Object have the same behavior (ADR-003), but their Role is different
 	// Record is what flows through the pipeline. Object is a nested value within a Record.
 	class Record : public Fields {};
 	class Object : public Fields {};
-
-	// overloading stream insertion for easier values & fields printing
-	std::ostream& operator<<(std::ostream& o, Fields const& f);
-	std::ostream& operator<<(std::ostream& o, Value const& v);
 
 	// A field value: the categories from ADR-001 (scalars + composites).
 	// Composites sit behind standard containers, whose heap storage gives
@@ -58,4 +61,8 @@ namespace cpe {
 		std::vector<Value> > {	// array
 		using variant::variant;	// using-declaration so Value inherits the std::variant's constructor
 	};
+	
+	// overloading equality comparison operator for Value
+	bool operator==(Value const& v1, Value const& v2);
+
 } // namespace cpe
