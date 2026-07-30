@@ -56,4 +56,27 @@ int main () {
 	for (const auto& [name, value] : record) {
 		std::cout << " - " << name << '\n';
 	}
+
+	// ----- ostream overload ----- //
+	std::cout << "\nThis is Record: \n" << record;
+	number = 99.99;
+	std::cout << "number: " << number << std::endl;
+	text = "new text";
+	std::cout << "text: " << text << std::endl;
+	std::cout << "flag: " << flag << std::endl;
+	std::cout << "empty: " << empty << std::endl;
+
+	std::cout << "\n... an object: \n";
+	cpe::Object addr;
+	addr.set("city", std::string("Strasbourg"));
+	addr.set("street", "rue machin");
+	addr.set("postcode", "67000");
+	std::cout << addr;
+
+	std::cout << "\n...and another record: \n";
+	cpe::Record record2;
+	record2.set("address", addr);
+	record2.set("scores", std::vector<cpe::Value>{1.0, 2.0, 3.0});
+	std::cout << record2;
+
 }

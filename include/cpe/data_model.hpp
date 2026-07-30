@@ -5,10 +5,12 @@
 #include <string>
 #include <iterator>
 #include <utility> // std::pair
+#include <ostream>
 
 namespace cpe {
 	struct Value;   // forward declaration: Fields and Value itself name Value before it is defined
 
+	// Fields: name-to-value mapping that Record and Object share (ADR-003)
 	class Fields {
 	public:
 		// Adds a field. Returns false without modifying the record if the name
@@ -35,8 +37,14 @@ namespace cpe {
 		std::vector<std::pair<std::string, Value>> entries_;
 	};
 
+	// Record and Object have the same behavior (ADR-003), but their Role is different
+	// Record is what flows through the pipeline. Object is a nested value within a Record.
 	class Record : public Fields {};
 	class Object : public Fields {};
+
+	// overloading stream insertion for easier values & fields printing
+	std::ostream& operator<<(std::ostream& o, Fields const& f);
+	std::ostream& operator<<(std::ostream& o, Value const& v);
 
 	// A field value: the categories from ADR-001 (scalars + composites).
 	// Composites sit behind standard containers, whose heap storage gives
@@ -47,7 +55,7 @@ namespace cpe {
 		double,					// number (IEEE 754 binary64, ADR-004)
 		std::string,
 		Object, 				// object (same contract as Record, ADR-003)
-		std::vector<Value>> {	// array
+		std::vector<Value> > {	// array
 		using variant::variant;	// using-declaration so Value inherits the std::variant's constructor
 	};
 } // namespace cpe

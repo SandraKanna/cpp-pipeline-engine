@@ -39,4 +39,46 @@ namespace cpe {
 		return entries_.end(); 
 	}
 
+	std::ostream& operator<<(std::ostream& o, Fields const& f) {
+		bool first = true;
+		o << "{";
+		for (const auto& [name, value] : f) {
+			if (!first)
+				o << ", ";
+			first = false;
+			o << name << " : " << value;
+		}
+		o << "}";
+		return (o);
+	}
+
+	std::ostream& operator<<(std::ostream& o, Value const& v) {
+		std::visit([&o](auto&& arg) {
+			using T = std::decay_t<decltype(arg)>;
+			if constexpr (std::is_same_v<T, std::monostate>)
+				o << "null";
+			else if constexpr (std::is_same_v<T, bool>)
+				o << std::boolalpha << arg;
+				// o << (arg? "true" : "false");
+			else if constexpr (std::is_same_v<T, double>)
+				o << arg;
+			else if constexpr (std::is_same_v<T, std::string>)
+				o << arg;
+			else if constexpr (std::is_same_v<T, Object>)
+				o << arg;
+			else if constexpr (std::is_same_v<T, std::vector<Value>>) {
+				bool first = true;
+				o << "[";
+				for (const auto& item : arg) {
+					if (!first)
+						o << ", ";
+					first = false;
+					o << item;
+				}
+				o << "]";
+			}
+		}, v);
+		return (o);
+	}
+
 } // namespace cpe
