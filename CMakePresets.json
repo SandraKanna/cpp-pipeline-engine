@@ -2,42 +2,52 @@
   "version": 6,
   "configurePresets": [
     {
-      "name": "debug",
-      "binaryDir": "${sourceDir}/build/debug",
+      "name": "dev",
+      "binaryDir": "${sourceDir}/build/dev",
       "generator": "Ninja",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
         "CMAKE_CXX_FLAGS": "-Wall -Wextra -fsanitize=address,undefined",
-        "CMAKE_EXE_LINKER_FLAGS": "-fsanitize=address,undefined"
+        "CMAKE_EXE_LINKER_FLAGS": "-fsanitize=address,undefined",
+        "CPE_BUILD_TESTS": "ON"
       }
     },
     {
-      "name": "ci",
+      "name": "release",
       "hidden": true,
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/build/${presetName}",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
         "CMAKE_CXX_FLAGS": "-Wall -Wextra",
-        "CMAKE_COMPILE_WARNING_AS_ERROR": true
+        "CMAKE_COMPILE_WARNING_AS_ERROR": true,
+        "CPE_BUILD_TESTS": "OFF"
       }
     },
-    { "name": "ci-gcc",
-      "inherits": "ci",
+    { "name": "release-gcc",
+      "inherits": "release",
       "cacheVariables": { 
         "CMAKE_CXX_COMPILER": "g++" 
       } 
     },
-    { "name": "ci-clang",
-      "inherits": "ci",
+    { "name": "release-clang",
+      "inherits": "release",
       "cacheVariables": { 
         "CMAKE_CXX_COMPILER": "clang++" 
       }
     }
   ],
   "buildPresets": [
-    { "name": "debug",    "configurePreset": "debug" },
-    { "name": "ci-gcc",   "configurePreset": "ci-gcc" },
-    { "name": "ci-clang", "configurePreset": "ci-clang" }
+    { "name": "dev",    "configurePreset": "dev" },
+    { "name": "release-gcc",   "configurePreset": "release-gcc" },
+    { "name": "release-clang", "configurePreset": "release-clang" }
+  ],
+  "testPresets": [
+    {
+      "name": "dev",
+      "configurePreset": "dev",
+      "output": { "outputOnFailure": true },
+      "execution": { "noTestsAction": "error" }
+    }
   ]
 }

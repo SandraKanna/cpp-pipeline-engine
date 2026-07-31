@@ -18,6 +18,9 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.run_id }}
   cancel-in-progress: true
 
+# All build logic (flags, warnings-as-error, compiler choice) lives in
+# CMakePresets.json, not here: any CI failure is reproducible locally
+# with the exact same command. The CI is a dumb orchestrator.
 jobs:
   build:
     # Fresh, disposable VM per job. Ubuntu runners ship gcc/clang/cmake/ninja.
@@ -30,15 +33,24 @@ jobs:
       # to ensure we write standard C++, not one compiler's dialect.
       matrix:
         compiler: [gcc, clang]
+    # ${{ matrix.compiler }} expands to gcc/clang -> preset release-gcc / release-clang.
     steps:
     # The runner VM starts with an empty filesystem; this step clones the repo into it.
     - uses: actions/checkout@v7
-
-    # All build logic (flags, warnings-as-error, compiler choice) lives in
-    # CMakePresets.json, not here: any CI failure is reproducible locally
-    # with the exact same command. The CI is a dumb orchestrator.
-    # ${{ matrix.compiler }} expands to gcc/clang -> preset ci-gcc / ci-clang.
     - name: Configure
-      run: cmake --preset ci-${{ matrix.compiler }}
+      run: cmake --preset release-${{ matrix.compiler }}
     - name: Build
-      run: cmake --build --preset ci-${{ matrix.compiler }}
+      run: cmake --build --preset release-${{ matrix.compiler }}
+  
+  test:
+    # Separate job from build: tests run in Debug with sanitizers, which catch
+    # memory and undefined-behavior errors that a Release build would hide.
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v7
+    - name: Configure
+      run: cmake --preset dev
+    - name: Build
+      run: cmake --build --preset dev
+    - name: Test
+      run: ctest --preset dev

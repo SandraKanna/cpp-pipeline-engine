@@ -25,25 +25,25 @@ target_link_libraries(cpe_skeleton PRIVATE cpe_core)
 
 # --- Tests ---
 
-include(FetchContent)
-FetchContent_Declare(
-    googletest
-    GIT_REPOSITORY https://github.com/google/googletest.git
-    GIT_TAG v1.17.0
-)
-FetchContent_MakeAvailable(googletest)
+# Off in the ci preset, which builds with warnings-as-error:
+# GoogleTest's own code does not compile clean when this is ON.
+option(CPE_BUILD_TESTS "Build the test suite" ON)
 
-enable_testing()
+if(CPE_BUILD_TESTS)
+    include(FetchContent)
+    FetchContent_Declare(
+        googletest
+        GIT_REPOSITORY https://github.com/google/googletest.git
+        GIT_TAG v1.17.0
+    )
+    FetchContent_MakeAvailable(googletest)
 
-add_executable(
-    cpe_tests 
-    tests/data_model_test.cpp
-)
+    enable_testing()
 
-target_link_libraries(
-    cpe_tests PRIVATE cpe_core 
-    GTest::gtest_main
-)
+    add_executable(cpe_tests tests/data_model_test.cpp)
+    target_link_libraries(cpe_tests PRIVATE cpe_core GTest::gtest_main)
 
-include(GoogleTest)
-gtest_discover_tests(cpe_tests)
+    # registers every TEST as its own ctest entry, instead of one lumped entry
+    include(GoogleTest)
+    gtest_discover_tests(cpe_tests)
+endif()
