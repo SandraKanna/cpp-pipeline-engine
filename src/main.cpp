@@ -1,7 +1,7 @@
-#include <iostream>
 #include <cpe/data_model.hpp>
+#include <iostream>
 
-int main () {
+int main() {
 	std::cout << "--- cpp-pipeline-engine (cpe) ---\n\n";
 
 	// ----- Value ----- //
@@ -13,33 +13,25 @@ int main () {
 
 	std::cout << std::boolalpha; // prints booleans as true/false instead of 1/0
 
-	std::cout << "number is double: "
-			  << std::holds_alternative<double>(number) << '\n';
+	std::cout << "number is double: " << std::holds_alternative<double>(number) << '\n';
 
-	std::cout << "text is string: "
-			  << std::holds_alternative<std::string>(text) << '\n';
+	std::cout << "text is string: " << std::holds_alternative<std::string>(text) << '\n';
 
-	std::cout << "flag is bool: "
-			  << std::holds_alternative<bool>(flag) << '\n';
+	std::cout << "flag is bool: " << std::holds_alternative<bool>(flag) << '\n';
 
-	std::cout << "empty is null: "
-			  << std::holds_alternative<std::monostate>(empty) << "\n\n";
+	std::cout << "empty is null: " << std::holds_alternative<std::monostate>(empty) << "\n\n";
 
 	// ----- Record ----- //
 
 	cpe::Record record;
 
-	std::cout << "Insert 'pi': "
-			  << record.set("pi", number) << '\n';
+	std::cout << "Insert 'pi': " << record.set("pi", number) << '\n';
 
-	std::cout << "Insert duplicate 'pi': "
-			  << record.set("pi", 42.0) << '\n';
+	std::cout << "Insert duplicate 'pi': " << record.set("pi", 42.0) << '\n';
 
-	std::cout << "Contains 'pi': "
-			  << record.contains("pi") << '\n';
+	std::cout << "Contains 'pi': " << record.contains("pi") << '\n';
 
-	std::cout << "Contains 'answer': "
-			  << record.contains("answer") << '\n';
+	std::cout << "Contains 'answer': " << record.contains("answer") << '\n';
 
 	if (record.get("pi")) {
 		std::cout << "'pi' exists\n";
@@ -82,7 +74,7 @@ int main () {
 	// ----- equality comparison overload ----- //
 	std::cout << "\nrecord == record2: " << (record == record2) << std::endl;
 	std::cout << "record2 == record2: " << (record2 == record2) << std::endl;
-	std::cout << "text == text: "     << (text == "new text") << std::endl;
-	std::cout << "number == Value(90.0): "    << (number == cpe::Value(90.0)) << std::endl;
-	std::cout << "number == 99.99: "    << (number == 99.99) << std::endl;
+	std::cout << "text == text: " << (text == "new text") << std::endl;
+	std::cout << "number == Value(90.0): " << (number == cpe::Value(90.0)) << std::endl;
+	std::cout << "number == 99.99: " << (number == 99.99) << std::endl;
 }

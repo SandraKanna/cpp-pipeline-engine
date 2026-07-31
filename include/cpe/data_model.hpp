@@ -1,14 +1,14 @@
 #pragma once
 
+#include <iterator>
+#include <ostream>
+#include <string>
+#include <utility> // std::pair
 #include <variant>
 #include <vector>
-#include <string>
-#include <iterator>
-#include <utility> // std::pair
-#include <ostream>
 
 namespace cpe {
-	struct Value;   // forward declaration: Fields and Value itself name Value before it is defined
+	struct Value; // forward declaration: Fields and Value itself name Value before it is defined
 
 	// Fields: name-to-value mapping that Record and Object share (ADR-003)
 	class Fields {
@@ -24,14 +24,14 @@ namespace cpe {
 		// [[nodiscard]] tells the compiler to warn the user if the result (bool) is not used
 		// noexcept promises no exception will be thrown
 		[[nodiscard]] bool contains(std::string const& field) const noexcept;
-	 	
+
 		// `using` to create aliases for iterator types (better readability)
 		using iterator = std::vector<std::pair<std::string, Value>>::iterator;
 		using const_iterator = std::vector<std::pair<std::string, Value>>::const_iterator;
 		iterator begin();
 		iterator end();
 		const_iterator begin() const;
-		const_iterator end() const ;
+		const_iterator end() const;
 
 	private:
 		std::vector<std::pair<std::string, Value>> entries_;
@@ -40,7 +40,7 @@ namespace cpe {
 	// overloading stream insertion for easier values & fields printing
 	std::ostream& operator<<(std::ostream& o, Fields const& f);
 	std::ostream& operator<<(std::ostream& o, Value const& v);
-	
+
 	// overloading equality comparison operator for Fields
 	bool operator==(Fields const& f1, Fields const& f2);
 
@@ -52,16 +52,16 @@ namespace cpe {
 	// A field value: the categories from ADR-001 (scalars + composites).
 	// Composites sit behind standard containers, whose heap storage gives
 	// Value a fixed size despite being recursive (ADR-002).
-	struct Value : std::variant<
-		std::monostate,			// the "null" slot (a variant is never empty).
-		bool,					
-		double,					// number (IEEE 754 binary64, ADR-004)
-		std::string,
-		Object, 				// object (same contract as Record, ADR-003)
-		std::vector<Value> > {	// array
-		using variant::variant;	// using-declaration so Value inherits the std::variant's constructor
+	struct Value : std::variant<std::monostate, // the "null" slot (a variant is never empty).
+	                            bool,
+	                            double, // number (IEEE 754 binary64, ADR-004)
+	                            std::string,
+	                            Object,               // object (same contract as Record, ADR-003)
+	                            std::vector<Value>> { // array
+		using variant::variant; // using-declaration so Value inherits the std::variant's
+		                        // constructor
 	};
-	
+
 	// overloading equality comparison operator for Value
 	bool operator==(Value const& v1, Value const& v2);
 

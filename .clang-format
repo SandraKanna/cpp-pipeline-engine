@@ -1,0 +1,9 @@
+# Based on LLVM style, adjusted for tab indentation.
+BasedOnStyle: LLVM
+UseTab: ForIndentation    # tabs to indent levels, spaces to align within a line
+IndentWidth: 4
+TabWidth: 4
+PointerAlignment: Left    # Value const& value, not Value const &value
+NamespaceIndentation: All # keep the level inside namespace cpe { }
+ColumnLimit: 100
+AccessModifierOffset: -4  # align public/private with 'class', not with its members

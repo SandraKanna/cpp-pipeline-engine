@@ -1,18 +1,18 @@
-#include <gtest/gtest.h>
 #include <cpe/data_model.hpp>
+#include <gtest/gtest.h>
 #include <string>
 #include <vector>
 
 // ADR-001: a field set to null exists; it is not the same as an absent field.
 TEST(Record, PresentNullDiffersFromAbsent) {
 	cpe::Record rec;
-	rec.set("a", cpe::Value{});	// present, holds null
+	rec.set("a", cpe::Value{}); // present, holds null
 
 	const cpe::Value* v = rec.get("a");
-	ASSERT_NE(v, nullptr);			// present, even though null
-	EXPECT_EQ(*v, cpe::Value{});	// and it compares equal to null
+	ASSERT_NE(v, nullptr);       // present, even though null
+	EXPECT_EQ(*v, cpe::Value{}); // and it compares equal to null
 
-	EXPECT_EQ(rec.get("absent"), nullptr);	// absent -> nullptr
+	EXPECT_EQ(rec.get("absent"), nullptr); // absent -> nullptr
 }
 
 // ADR-002: comparing a Value that holds an Object compares the fields inside it.
@@ -58,8 +58,8 @@ TEST(Record, SetDuplicateNameRejected) {
 	EXPECT_FALSE(rec.set("a", cpe::Value{2.0}));
 
 	const cpe::Value* v = rec.get("a");
-	ASSERT_NE(v, nullptr);				// stop here if absent: the next line would deref null
-	EXPECT_EQ(*v, cpe::Value{3.14});	// first value shouldnt have been modified
+	ASSERT_NE(v, nullptr);           // stop here if absent: the next line would deref null
+	EXPECT_EQ(*v, cpe::Value{3.14}); // first value shouldnt have been modified
 }
 
 // ADR-003: iteration follows insertion order, not sorted or arbitrary.

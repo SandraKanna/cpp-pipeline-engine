@@ -1,5 +1,5 @@
-#include <cpe/data_model.hpp>
 #include <algorithm> // std::any_of std::find_if
+#include <cpe/data_model.hpp>
 
 namespace cpe {
 
@@ -7,39 +7,29 @@ namespace cpe {
 		// set() forbids duplicate names (ADR-003), so the first match is the only match
 		if (contains(field))
 			return (false);
-		entries_.emplace_back(field, value); // faster than push_back, builds the pair directly in the vector
+		// emplace_back: faster than push_back, builds the pair directly in the vector
+		entries_.emplace_back(field, value);
 		return (true);
 	}
 
 	const Value* Fields::get(std::string const& field) const {
 		auto it = std::find_if(entries_.begin(), entries_.end(),
-			[&field](auto const &pair){return (pair.first == field);});
+		                       [&field](auto const& pair) { return (pair.first == field); });
 		if (it == entries_.end())
-			return (nullptr);	
+			return (nullptr);
 		return (&it->second);
 	}
 
 	bool Fields::contains(std::string const& field) const noexcept {
-		return (std::any_of(
-			entries_.begin(), entries_.end(), 
-			[&field](auto const &pair) 
-			{return (pair.first == field);})
-		);
+		return (std::any_of(entries_.begin(), entries_.end(),
+		                    [&field](auto const& pair) { return (pair.first == field); }));
 	}
 
-	Fields::iterator Fields::begin() { 
-		return entries_.begin(); 
-	}
+	Fields::iterator Fields::begin() { return entries_.begin(); }
 
-	Fields::iterator Fields::end() { 
-		return entries_.end(); 
-	}
-	Fields::const_iterator Fields::begin() const { 
-		return entries_.begin(); 
-	}
-	Fields::const_iterator Fields::end() const { 
-		return entries_.end(); 
-	}
+	Fields::iterator Fields::end() { return entries_.end(); }
+	Fields::const_iterator Fields::begin() const { return entries_.begin(); }
+	Fields::const_iterator Fields::end() const { return entries_.end(); }
 
 	// ----- OVERLOAD ----- //
 
@@ -57,31 +47,33 @@ namespace cpe {
 	}
 
 	std::ostream& operator<<(std::ostream& o, Value const& v) {
-		std::visit([&o](auto&& arg) {
-			using T = std::decay_t<decltype(arg)>;
-			// if constexpr: only the branch matching T is compiled (a plain if would compile all)
-			if constexpr (std::is_same_v<T, std::monostate>)
-				o << "null";
-			else if constexpr (std::is_same_v<T, bool>)
-				o << std::boolalpha << arg;
-			else if constexpr (std::is_same_v<T, double>)
-				o << arg;
-			else if constexpr (std::is_same_v<T, std::string>)
-				o << arg;
-			else if constexpr (std::is_same_v<T, Object>)
-				o << arg;
-			else if constexpr (std::is_same_v<T, std::vector<Value>>) {
-				bool first = true;
-				o << "[";
-				for (const auto& item : arg) {
-					if (!first)
-						o << ", ";
-					first = false;
-					o << item;
-				}
-				o << "]";
-			}
-		}, v);
+		std::visit(
+		    [&o](auto&& arg) {
+			    using T = std::decay_t<decltype(arg)>;
+			    // if constexpr: only the branch matching T is compiled
+			    if constexpr (std::is_same_v<T, std::monostate>)
+				    o << "null";
+			    else if constexpr (std::is_same_v<T, bool>)
+				    o << std::boolalpha << arg;
+			    else if constexpr (std::is_same_v<T, double>)
+				    o << arg;
+			    else if constexpr (std::is_same_v<T, std::string>)
+				    o << arg;
+			    else if constexpr (std::is_same_v<T, Object>)
+				    o << arg;
+			    else if constexpr (std::is_same_v<T, std::vector<Value>>) {
+				    bool first = true;
+				    o << "[";
+				    for (const auto& item : arg) {
+					    if (!first)
+						    o << ", ";
+					    first = false;
+					    o << item;
+				    }
+				    o << "]";
+			    }
+		    },
+		    v);
 		return (o);
 	}
 
