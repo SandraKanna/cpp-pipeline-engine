@@ -54,3 +54,20 @@ jobs:
       run: cmake --build --preset dev
     - name: Test
       run: ctest --preset dev
+  
+  format-check:
+    # Lightweight job: clang-format only reads files, so no configure or build.
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v7
+
+    # Install clang-format 22 from LLVM's official script (Ubuntu ships older).
+    # Pinned so CI formatting matches local: output changes between major versions.
+    - name: Install clang-format 22
+      run: |
+        wget https://apt.llvm.org/llvm.sh
+        chmod +x llvm.sh
+        sudo ./llvm.sh 22
+
+    - name: Check formatting
+      run: clang-format-22 --dry-run --Werror src/*.cpp include/cpe/*.hpp tests/*.cpp
