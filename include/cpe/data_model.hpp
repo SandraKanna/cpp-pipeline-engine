@@ -19,19 +19,21 @@ namespace cpe {
 
 		// Returns nullptr if the field does not exist. Distinguishes "no field"
 		// from "field exists with a null Value" (ADR-001's null category),
-		const Value* get(std::string const& field) const;
+		[[nodiscard]] const Value* get(std::string const& field) const;
 
 		// [[nodiscard]] tells the compiler to warn the user if the result (bool) is not used
 		// noexcept promises no exception will be thrown
 		[[nodiscard]] bool contains(std::string const& field) const noexcept;
 
 		// `using` to create aliases for iterator types (better readability)
+		// NOLINTNEXTLINE(readability-identifier-naming): STL container nested-type convention
 		using iterator = std::vector<std::pair<std::string, Value>>::iterator;
+		// NOLINTNEXTLINE(readability-identifier-naming): STL container nested-type convention
 		using const_iterator = std::vector<std::pair<std::string, Value>>::const_iterator;
 		iterator begin();
 		iterator end();
-		const_iterator begin() const;
-		const_iterator end() const;
+		[[nodiscard]] const_iterator begin() const;
+		[[nodiscard]] const_iterator end() const;
 
 	private:
 		std::vector<std::pair<std::string, Value>> entries_;

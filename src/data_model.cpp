@@ -1,4 +1,4 @@
-#include <algorithm> // std::any_of std::find_if
+#include <algorithm> // std::ranges
 #include <cpe/data_model.hpp>
 
 namespace cpe {
@@ -6,23 +6,23 @@ namespace cpe {
 	bool Fields::set(std::string const& field, Value const& value) {
 		// set() forbids duplicate names (ADR-003), so the first match is the only match
 		if (contains(field))
-			return (false);
+			return false;
 		// emplace_back: faster than push_back, builds the pair directly in the vector
 		entries_.emplace_back(field, value);
-		return (true);
+		return true;
 	}
 
 	const Value* Fields::get(std::string const& field) const {
-		auto it = std::find_if(entries_.begin(), entries_.end(),
-		                       [&field](auto const& pair) { return (pair.first == field); });
+		auto it = std::ranges::find_if(entries_,
+		                               [&field](auto const& pair) { return pair.first == field; });
 		if (it == entries_.end())
-			return (nullptr);
-		return (&it->second);
+			return nullptr;
+		return &it->second;
 	}
 
 	bool Fields::contains(std::string const& field) const noexcept {
-		return (std::any_of(entries_.begin(), entries_.end(),
-		                    [&field](auto const& pair) { return (pair.first == field); }));
+		return std::ranges::any_of(entries_,
+		                           [&field](auto const& pair) { return pair.first == field; });
 	}
 
 	Fields::iterator Fields::begin() { return entries_.begin(); }
@@ -43,7 +43,7 @@ namespace cpe {
 			o << name << " : " << value;
 		}
 		o << "}";
-		return (o);
+		return o;
 	}
 
 	std::ostream& operator<<(std::ostream& o, Value const& v) {
@@ -56,10 +56,7 @@ namespace cpe {
 			    else if constexpr (std::is_same_v<T, bool>)
 				    o << std::boolalpha << arg;
 			    else if constexpr (std::is_same_v<T, double>)
-				    o << arg;
-			    else if constexpr (std::is_same_v<T, std::string>)
-				    o << arg;
-			    else if constexpr (std::is_same_v<T, Object>)
+				    // NOLINTNEXTLINE(bugprone-branch-clone): distinct type per branch
 				    o << arg;
 			    else if constexpr (std::is_same_v<T, std::vector<Value>>) {
 				    bool first = true;
@@ -74,12 +71,12 @@ namespace cpe {
 			    }
 		    },
 		    v);
-		return (o);
+		return o;
 	}
 
 	bool operator==(Fields const& f1, Fields const& f2) {
 		// std::equal compares element by element in order; order matters here (ADR-003)
-		return (std::equal(f1.begin(), f1.end(), f2.begin(), f2.end()));
+		return std::ranges::equal(f1, f2);
 	}
 
 	// Value equality, including comparison against a raw scalar (value == 99.99).

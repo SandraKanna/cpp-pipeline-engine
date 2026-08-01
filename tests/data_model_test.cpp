@@ -17,7 +17,7 @@ TEST(Record, PresentNullDiffersFromAbsent) {
 
 // ADR-002: comparing a Value that holds an Object compares the fields inside it.
 TEST(Value, NestedObjectEquality) {
-	auto make = [](cpe::Value b) {
+	auto make = [](cpe::Value const& b) {
 		cpe::Object obj;
 		obj.set("a", cpe::Value{3.14});
 		obj.set("b", b);
