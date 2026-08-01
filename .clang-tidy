@@ -1,0 +1,55 @@
+# Enabled groups: bugprone, modernize, performance, readability, clang-analyzer.
+# Excluded checks and why:
+#   trailing-return-type       - not this project's style
+#   identifier-length          - clashes with conventional short names (o, it, v, j, i)
+#   braces-around-statements   - brace style is a formatting choice, left to clang-format
+#   inconsistent-ifelse-braces - formatting choice, left to clang-format
+#   convert-member-to-static   - false positives on an interface under construction
+Checks: >
+  bugprone-*,
+  modernize-*,
+  performance-*,
+  readability-*,
+  clang-analyzer-*,
+  -modernize-use-trailing-return-type,
+  -readability-identifier-length,
+  -readability-braces-around-statements,
+  -readability-inconsistent-ifelse-braces,
+  -readability-convert-member-functions-to-static
+
+# Only report diagnostics from the project's own headers (path matches cpe/*.hpp);
+# headers from dependencies and the standard library are left out.
+HeaderFilterRegex: 'cpe/.*\.hpp$'
+
+# Naming convention: PascalCase types, snake_case everything else,
+# trailing _ for private members, UPPER_CASE for macros/global constants.
+# Style (spacing, tabs, braces) is handled by clang-format, not here.
+CheckOptions:
+  - key: readability-identifier-naming.NamespaceCase
+    value: lower_case
+  - key: readability-identifier-naming.ClassCase
+    value: CamelCase
+  - key: readability-identifier-naming.StructCase
+    value: CamelCase
+  - key: readability-identifier-naming.EnumCase
+    value: CamelCase
+  - key: readability-identifier-naming.TypeAliasCase
+    value: CamelCase
+  - key: readability-identifier-naming.TypedefCase
+    value: CamelCase
+  - key: readability-identifier-naming.FunctionCase
+    value: lower_case
+  - key: readability-identifier-naming.VariableCase
+    value: lower_case
+  - key: readability-identifier-naming.ParameterCase
+    value: lower_case
+  - key: readability-identifier-naming.PrivateMemberCase
+    value: lower_case
+  - key: readability-identifier-naming.PrivateMemberSuffix
+    value: _
+  - key: readability-identifier-naming.GlobalConstantCase
+    value: UPPER_CASE
+  - key: readability-identifier-naming.ClassConstantCase
+    value: UPPER_CASE
+  - key: readability-identifier-naming.MacroDefinitionCase
+    value: UPPER_CASE
