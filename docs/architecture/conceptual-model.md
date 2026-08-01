@@ -28,7 +28,7 @@ Two concerns run across the whole flow. `configuration` is the recipe: the user 
 
 The blocks of the previous stage are opened here into five responsibilities: `extraction` is renamed `deserialization`, and `output` splits into `serialization` and `delivery`.
 
-A *record* is a single entry made up of named fields: one row of a CSV, one JSON object, one parsed log line.
+A *record* is a single entry made up of named fields: one row of a CSV, one JSON object, one parsed log line. Each field holds a *value*, the content carried in that field.
 
 Two of the five responsibilities sit outside the application — `acquisition`, which reaches out to an origin for bytes, and `delivery`, which leaves bytes at a destination. The three in between — `deserialization`, `processing`, `serialization` — stay within the application and never touch files, sockets or buckets.
 
