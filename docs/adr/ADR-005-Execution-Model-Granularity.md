@@ -10,11 +10,9 @@ Accepted
 
 ## Context
 
-[`decisions-backlog.md`](../architecture/decisions-backlog.md) (Execution model) opens three questions about how data moves from stage to stage. This ADR decides the first: whether the engine processes one record at a time, or a group of records (batch).
+[`decisions-backlog.md`](../architecture/decisions-backlog.md) (Execution model) opens three questions about how data moves from stage to stage. The first is whether the engine processes one record at a time or a group of records at once. Functional driver 5 narrows it: an unbounded input has no end to wait for, so the whole dataset as one batch is ruled out. This ADR decides between the two remaining options: one record at a time, or batches of some fixed size N.
 
-The decision is visible in the public API: it determines the signature that a user-written component (functional driver 1) has to implement when producing, transforming, or consuming records.
-
-Functional driver 5 rules out the extreme case where the batch is the whole dataset: an unbounded input has no end to wait for. The open question is between one record at a time vs grouping records in batches of some size N.
+The decision is visible in the public API. It determines how many records a single call exchanges, and user-written components (functional driver 1) implement against it.
 
 ## Decision
 
