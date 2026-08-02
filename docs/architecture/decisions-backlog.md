@@ -16,9 +16,11 @@ Going one level deeper, from functional drivers 2 and 3 we can derive that the t
 **Open:** how this dynamic type stores its data internally (map-based vs. vector-based field storage, for example). *Deferred to implementation, not needed to make the data model decision itself.*
 
 ## Execution model
-Functional driver 5 states that the library must be able to handle unbounded or arbitrarily large data. The use cases include logs and sensor streams that, in principle, never end. This means the incoming data cannot be assumed to fit in memory as a whole. The library needs to decide how many records are alive in memory at any given time: load the full dataset before processing (batch) vs. process one record at a time as it arrives (streaming, pull-based).
+Functional driver 5 states that the library must be able to handle unbounded or arbitrarily large data. The use cases include logs and sensor streams that, in principle, never end. This means the incoming data cannot be assumed to fit in memory as a whole. Deciding how the pipeline moves data from stage to stage opens three questions, to be answered in sequential order as each one conditions the next:
 
-The [Pipe and Filter](https://www.geeksforgeeks.org/system-design/pipe-and-filter-architecture-system-design/) pattern lists performance overhead and latency among its known drawbacks, since data moves from stage to stage. Whether that cost is acceptable here is part of this decision.
+**Open:** Whether the tool processes one record at a time, or a group of records (batch).
+**Open:** whether the consumer pulls records from the producer, or the producer pushes records to the consumer.
+**Open:** whether a call requesting the next record is blocking or asynchronous.
 
 ## Error modeling & handling
 As the project's context highlights, this is meant to be a production-ready deliverable, meaning it will run against real-world input, which will very likely contain inconsistencies: misspelled fields, corrupted rows, missing separators, files that don't exist, etc. All the expected input sources (CSV, JSON and sensor messages, logs) are imperfect in practice.
