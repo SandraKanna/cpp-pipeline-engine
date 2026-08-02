@@ -15,7 +15,7 @@
 | Language      | C++20
 | Build         | CMake
 | Tests         | GoogleTest
-| Quality       | Clang-format + sanitizers
+| Quality       | Clang-format + Clang-tidy + sanitizers
 | CI            | GitHub Actions
 
 ## Documentation
@@ -24,7 +24,7 @@
 - [Architectural drivers](docs/architecture/architectural-drivers.md): what shapes this design
 - [Conceptual model](docs/architecture/conceptual-model.md): what the tool does
 - [Decisions backlog](docs/architecture/decisions-backlog.md): architecturally significant decisions + dependency sequence with reversal cost
-- Architecture Decision Records ([`docs/adr/`](docs/adr/)): ADR-000 (ADR process), ADR-001 through ADR-004 (data model)
+- Architecture Decision Records ([`docs/adr/`](docs/adr/)): ADR-000 (ADR process), ADR-001 through ADR-004 (data model), ADR-005 through ADR-007 (execution model)
 
 ## Data model
 
