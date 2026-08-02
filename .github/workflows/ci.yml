@@ -55,12 +55,12 @@ jobs:
     - name: Test
       run: ctest --preset dev
   
+  # verify lexical consistency across the project
   format-check:
     # Lightweight job: clang-format only reads files, so no configure or build.
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v7
-
     # Install clang-format 22 from LLVM's official script (Ubuntu ships older).
     # Pinned so CI formatting matches local: output changes between major versions.
     - name: Install clang-format 22
@@ -72,3 +72,23 @@ jobs:
 
     - name: Check formatting
       run: clang-format-22 --dry-run --Werror src/*.cpp include/cpe/*.hpp tests/*.cpp
+
+  # Separate job from format-check: clang-tidy analyzes semantics (linting), 
+  # not layout, it needs the compilation database that a configure step produces.
+  tidy:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v7
+    # Same version pinning rationale as format-check: the check set changes
+    # between major versions, so local and CI must run the same one.
+    - name: Install clang-tidy 22
+      run: |
+        wget https://apt.llvm.org/llvm.sh
+        chmod +x llvm.sh
+        sudo ./llvm.sh 22
+        sudo apt-get install -y clang-tidy-22
+    # tidy needs the compilation database; configure generates it (no build needed).
+    - name: Configure
+      run: cmake --preset dev
+    - name: Run clang-tidy
+      run: clang-tidy-22 -p build/dev src/data_model.cpp tests/data_model_test.cpp
