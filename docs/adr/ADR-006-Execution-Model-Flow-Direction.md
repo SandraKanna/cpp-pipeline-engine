@@ -10,7 +10,7 @@ Accepted
 
 ## Context
 
-[`decisions-backlog.md`](../architecture/decisions-backlog.md) (Execution model) opens three questions about how data moves from stage to stage. [ADR-005](ADR-005-Execution-Model-Granularity.md) decided the first: the engine processes one record at a time. This ADR decides the second: which side of a component-to-component connection initiates each exchange. Two shapes are possible: the consumer requests the next record from the producer when ready (a pull model), or the producer delivers the next record to the consumer as soon as it has one (a push model).
+[`decisions-map.md`](../architecture/decisions-map.md) (Execution model) opens three questions about how data moves from stage to stage. [ADR-005](ADR-005-Execution-Model-Granularity.md) decided the first: the engine processes one record at a time. This ADR decides the second: which side of a component-to-component connection initiates each exchange. Two shapes are possible: the consumer requests the next record from the producer when ready (a pull model), or the producer delivers the next record to the consumer as soon as it has one (a push model).
 
 The decision is visible in the public API. It determines which side initiates each exchange, and user-written components (functional driver 1) implement against it.
 

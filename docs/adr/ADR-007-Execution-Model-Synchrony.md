@@ -10,7 +10,7 @@ Accepted
 
 ## Context
 
-[`decisions-backlog.md`](../architecture/decisions-backlog.md) (Execution model) opens three questions about how data moves from stage to stage. [ADR-005](ADR-005-Execution-Model-Granularity.md) decided the first: the engine processes one record at a time. [ADR-006](ADR-006-Execution-Model-Flow-Direction.md) decided the second: the consumer pulls records from the producer. This ADR decides the third: whether the consumer's call for the next record blocks until the record is available (a blocking model), or returns immediately with a placeholder that will hold the record once it arrives (an asynchronous model).
+[`decisions-map.md`](../architecture/decisions-map.md) (Execution model) opens three questions about how data moves from stage to stage. [ADR-005](ADR-005-Execution-Model-Granularity.md) decided the first: the engine processes one record at a time. [ADR-006](ADR-006-Execution-Model-Flow-Direction.md) decided the second: the consumer pulls records from the producer. This ADR decides the third: whether the consumer's call for the next record blocks until the record is available (a blocking model), or returns immediately with a placeholder that will hold the record once it arrives (an asynchronous model).
 
 The decision is visible in the public API. It determines how the call returns its result, and user-written components (functional driver 1) implement against it.
 

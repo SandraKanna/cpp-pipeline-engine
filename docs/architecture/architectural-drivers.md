@@ -3,7 +3,7 @@
 
 **Status:** Accepted
 
-This document analyses how the requirements from [requirements.md](requirements.md) shape the architecture, and states the quality attributes the design prioritizes together with what each one costs. It does not decide any concrete design: those decisions are tracked in [decisions-backlog.md](decisions-backlog.md) and resolved in individual ADRs.
+This document analyses how the requirements from [requirements.md](requirements.md) shape the architecture, and states the quality attributes the design prioritizes together with what each one costs. It does not decide any concrete design: those decisions are tracked in [decisions-map.md](decisions-map.md) and resolved in individual ADRs.
 
 ## Functional drivers
 

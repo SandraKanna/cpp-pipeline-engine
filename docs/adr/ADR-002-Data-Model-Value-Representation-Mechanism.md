@@ -10,7 +10,7 @@ Accepted
 
 ## Context
 
-[`decisions-backlog.md`](../architecture/decisions-backlog.md) (Data model, Logical level) establishes that a field's value type cannot be fixed at compile time: it must be chosen at runtime, without recompiling. This ADR decides which C++ mechanism represents that value. 
+[`decisions-map.md`](../architecture/decisions-map.md) (Data model, Logical level) establishes that a field's value type cannot be fixed at compile time: it must be chosen at runtime, without recompiling. This ADR decides which C++ mechanism represents that value. 
 
 A spike over modern C++ features and community references ([Stack Overflow — runtime mapping of values to types](https://stackoverflow.com/questions/62759640/runtime-mapping-of-values-to-types), [Nimrod's Coding Lab — elegant ways to map runtime values to types](https://nimrod.blog/posts/cpp-elegant-ways-to-map-runtime-values-to-types/)) surfaced three mechanisms that let the concrete type be chosen at runtime:
 
@@ -22,13 +22,13 @@ A spike over modern C++ features and community references ([Stack Overflow — r
 
 `Value` is represented as `std::variant`.
 
-Two conditions constrain the choice. First, the type is chosen at runtime, without recompiling ([`decisions-backlog.md`](../architecture/decisions-backlog.md), Logical level). Second, [ADR-001](ADR-001-Data-Model-Value-Types.md) established that the value categories form a closed set, known at compile time, and that composites make the set recursive. `std::variant` fits both: it holds one type at a time from a set defined at compile time and chosen at runtime, and it admits the recursive composites as alternatives backed by standard containers. It also keeps the compile-time list of what a value can be, which the alternatives below give up or scatter.
+Two conditions constrain the choice. First, the type is chosen at runtime, without recompiling ([`decisions-map.md`](../architecture/decisions-map.md), Logical level). Second, [ADR-001](ADR-001-Data-Model-Value-Types.md) established that the value categories form a closed set, known at compile time, and that composites make the set recursive. `std::variant` fits both: it holds one type at a time from a set defined at compile time and chosen at runtime, and it admits the recursive composites as alternatives backed by standard containers. It also keeps the compile-time list of what a value can be, which the alternatives below give up or scatter.
 
 ### Alternatives rejected
 
 **`std::any`** can hold any type, including ones unknown today, but gives up the compile-time list of what a value can be. That openness is only useful for genuinely new kinds of data, and [`architectural-drivers.md`](../architecture/architectural-drivers.md) (Scope) places those (such as binary) in a different data model. It is not needed here.
 
-**Polymorphic inheritance.** Each kind of value becomes a subclass of a base class, reached through a base pointer. This forces a heap allocation and an indirection on every value, scalars included, when a scalar needs neither. It also commits the public type to one storage strategy, which [`decisions-backlog.md`](../architecture/decisions-backlog.md) (Data model, Physical level) leaves open for implementation to decide.
+**Polymorphic inheritance.** Each kind of value becomes a subclass of a base class, reached through a base pointer. This forces a heap allocation and an indirection on every value, scalars included, when a scalar needs neither. It also commits the public type to one storage strategy, which [`decisions-map.md`](../architecture/decisions-map.md) (Data model, Physical level) leaves open for implementation to decide.
 
 ## Consequences
 - Adding a new kind of value later requires editing `Value` and the code that reads it: a compiler-visible change, not a silent gap.

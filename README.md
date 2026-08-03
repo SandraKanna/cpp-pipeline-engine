@@ -23,7 +23,7 @@
 - [Requirements](docs/architecture/requirements.md): what the product must do
 - [Architectural drivers](docs/architecture/architectural-drivers.md): what shapes this design
 - [Conceptual model](docs/architecture/conceptual-model.md): what the tool does
-- [Decisions backlog](docs/architecture/decisions-backlog.md): architecturally significant decisions + dependency sequence with reversal cost
+- [Decisions map](docs/architecture/decisions-map.md): architecturally significant decisions + dependency sequence with reversal cost
 - Architecture Decision Records ([`docs/adr/`](docs/adr/)): ADR-000 (ADR process), ADR-001 through ADR-004 (data model), ADR-005 through ADR-007 (execution model)
 
 ## Data model

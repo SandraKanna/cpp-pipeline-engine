@@ -1,6 +1,6 @@
 # Shared conceptual model
 
-This document describes what the tool does, in four stages from the most general to the most detailed, and closes by naming the architectural pattern they form. It derives from [architectural-drivers.md](architectural-drivers.md) and provides the shared vocabulary used in [decisions-backlog.md](decisions-backlog.md).
+This document describes what the tool does, in four stages from the most general to the most detailed, and closes by naming the architectural pattern they form. It derives from [architectural-drivers.md](architectural-drivers.md) and provides the shared vocabulary used in [decisions-map.md](decisions-map.md).
 
 ## Stage 0 — Context
 
