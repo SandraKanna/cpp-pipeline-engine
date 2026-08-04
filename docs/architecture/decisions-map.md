@@ -22,7 +22,7 @@ Functional driver 5 states that the library must be able to handle unbounded or 
 **Open:** whether the consumer pulls records from the producer, or the producer pushes records to the consumer.
 **Open:** whether a call requesting the next record is blocking or asynchronous.
 
-## Errors [in-progress]
+## Error Model [in-progress]
 As the project's context highlights, this is meant to be a production-ready deliverable, meaning it will run against real-world input, which will very likely contain inconsistencies: misspelled fields, corrupted rows, missing separators, files that don't exist, etc. All the expected input sources (CSV, JSON and sensor messages, logs) are imperfect in practice. Two situations already come from the current scope: errors raised while the pipeline is being built (an invalid configuration) and errors raised while data flows through it (a corrupted row). Whether they are two classes, one, or more, is part of the taxonomy decision. The category splits into three decisions.
 
 **Open:** which classes of error the model recognizes (taxonomy). *Not resolved here.*
@@ -81,7 +81,7 @@ From quality attributes 2 (testability) and 1 (extensibility). Quality attribute
 
 1. **Data model** — no dependencies. Defines the type that flows through the pipeline; every other decision references it.
 2. **Execution model** — depends on (1). You can't decide how data moves without first knowing what that data is.
-3. **Errors** — depends on (2). How an error is modeled and handled depends on whether records are processed one at a time or in bulk, which is exactly what decision (2) settles.
+3. **Error Model** — depends on (2). How an error is modeled and handled depends on whether records are processed one at a time or in bulk, which is exactly what decision (2) settles.
 4. **Extensibility** — depends on (1), (2), (3). A user-defined component must fit into the pipeline, which already determines what it receives (1), when it's called (2), and what an error looks like (3).
 5. **API usability** — depends on (4). The public-facing builder can only be designed once the underlying components and their contract already exist.
 6. **Module isolation** — depends on (1) and (4) specifically, not (2) or (3). You need to know what kinds of components exist (1) and how a user adds their own (4) to decide which compilation module each one belongs to. Execution model and error handling don't affect where a component physically lives.
