@@ -24,7 +24,7 @@
 - [Architectural drivers](docs/architecture/architectural-drivers.md): what shapes this design
 - [Conceptual model](docs/architecture/conceptual-model.md): what the tool does
 - [Decisions map](docs/architecture/decisions-map.md): architecturally significant decisions + dependency sequence with reversal cost
-- Architecture Decision Records ([`docs/adr/`](docs/adr/)): ADR-000 (ADR process), ADR-001 through ADR-004 (data model), ADR-005 through ADR-007 (execution model)
+- Architecture Decision Records ([`docs/adr/`](docs/adr/)): ADR-000 (ADR process), ADR-001 through ADR-004 (data model), ADR-005 through ADR-007 (execution model), ADR-008 through ADR-013 (error model)
 
 ## Data model
 
