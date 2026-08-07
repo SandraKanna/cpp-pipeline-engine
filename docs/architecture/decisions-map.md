@@ -22,27 +22,28 @@ Functional driver 5 states that the library must be able to handle unbounded or 
 **Open:** whether the consumer pulls records from the producer, or the producer pushes records to the consumer.
 **Open:** whether a call requesting the next record is blocking or asynchronous.
 
-## Error Model [in-progress]
+## Error Model [resolved]
 As the project's context highlights, this is meant to be a production-ready deliverable, meaning it will run against real-world input, which will very likely contain inconsistencies: misspelled fields, corrupted rows, missing separators, files that don't exist, etc. All the expected input sources (CSV, JSON and sensor messages, logs) are imperfect in practice. Two situations already come from the current scope: errors raised while the pipeline is being built (an invalid configuration) and errors raised while data flows through it (a corrupted row). Whether they are two classes, one, or more, is part of the taxonomy decision. The category splits into three decisions.
 
-**Open:** which classes of error the model recognizes (taxonomy). *Not resolved here.*
+**Open:** which classes of error the model recognizes (taxonomy).
 
-**Open:** how each class is represented in the type system (modeling). *Not resolved here.*
+**Open:** how each class is represented in the type system (modeling).
 
-**Open:** what runtime behavior each class triggers (handling), and whether the policy is global to the pipeline or configurable per component. *Not resolved here.*
+**Open:** what runtime behavior each class triggers (handling), and whether the policy is global to the pipeline or configurable per component.
 
 ## Observability [pending]
 The conceptual model marks `errors & logs` as a transversal concern observable from outside the library. Whether the library emits its own log stream, and what shape the final execution report takes, are open decisions separate from the error model. Deferred to their own sessions.
 
+## Extensibility [in-progress]
+Extensibility here means the ability for a user to add a new component of their own to the pipeline. Functional drivers 1 and 3, together with quality attribute 1 (extensibility), define decoupling as the core design principle. Driver 1 lets the user add their own components. Driver 3 lets them compose those (and the library's own) components into a pipeline at runtime, via configuration.
 
-## Extensibility [pending]
-Functional drivers 1 and 3, together with quality attribute 1 (extensibility), define decoupling as the core design principle here. Driver 1 lets the user add their own components for the data types they need in their own workflow. Driver 3 lets them compose those (and the library's own) components into a pipeline at runtime, without recompiling, via configuration.
+This block decides the contract any component must satisfy, whether it ships with the library or comes from the user. The facade the user interacts with (builder, configuration schema, resolution from a name to a concrete component) belongs to API usability.
 
-This is about how a user adds a brand new component, not about isolating heavy dependencies (see Module isolation below).
+**Open:** how many contracts the extension surface exposes. The five responsibilities in `conceptual-model.md` may map one-to-one, fuse, or split. Three cut points sit inside this question: whether acquisition and deserialization are one contract or two (bytes or records at the extension point?), whether cutting the byte stream into record-sized chunks is part of deserialization or a responsibility of its own that comes before it, and whether serialization and delivery are one contract or two.
 
-**Open:** does the extension point hand over bytes or already-formed records? This determines whether acquisition and deserialization are one contract or two. *Not resolved here, this document only scopes the question.*
+**Open:** what shape each contract has: which operations the user implements, how end-of-stream is signalled, whether lifecycle operations are needed.
 
-**Open:** is cutting the byte stream into record-sized chunks part of deserialization, or a responsibility of its own that comes before it? Unbounded input cannot wait for the end of the stream to be split. *Not resolved here, this document only scopes the question.*
+**Open:** which C++ mechanism realises each contract. Driver 3 constrains this: the concrete type of a component is not known at compile time.
 
 ## API usability [pending]
 From quality attribute 3. The design must put the user first: the heaviest part of the work happens backstage, so the user only configures what's strictly necessary. The interface should make common mistakes hard to make. Configuration validation happens in one single place before anything runs. Components ship with sensible defaults that the user can override, which also double as usage examples.
