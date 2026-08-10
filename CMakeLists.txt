@@ -9,7 +9,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # create the library cpe_core with specific specs to respect: C++20
 # Anything that needs Record/Value links against this
-add_library(cpe_core src/data_model.cpp)
+add_library(cpe_core src/data_model.cpp src/execution/buffer_acquisition.cpp)
 target_compile_features(cpe_core PUBLIC cxx_std_20)
 target_include_directories(cpe_core PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/include)
@@ -22,6 +22,18 @@ target_compile_features(cpe_skeleton PRIVATE cxx_std_20)
 # link the app and the library
 target_link_libraries(cpe_skeleton PRIVATE cpe_core)
 
+# --- Dependencies ---
+
+# expected-lite (See ADR-010): header-only implementation of std::expected (C++23) for C++20.
+include(FetchContent)
+FetchContent_Declare(
+    expected-lite
+    GIT_REPOSITORY https://github.com/martinmoene/expected-lite.git
+    GIT_TAG v0.10.0
+)
+FetchContent_MakeAvailable(expected-lite)
+
+target_link_libraries(cpe_core PUBLIC nonstd::expected-lite)
 
 # --- Tests ---
 
@@ -30,7 +42,6 @@ target_link_libraries(cpe_skeleton PRIVATE cpe_core)
 option(CPE_BUILD_TESTS "Build the test suite" ON)
 
 if(CPE_BUILD_TESTS)
-    include(FetchContent)
     FetchContent_Declare(
         googletest
         GIT_REPOSITORY https://github.com/google/googletest.git
@@ -40,7 +51,7 @@ if(CPE_BUILD_TESTS)
 
     enable_testing()
 
-    add_executable(cpe_tests tests/data_model_test.cpp)
+    add_executable(cpe_tests tests/data_model_test.cpp tests/buffer_acquisition_test.cpp)
     target_link_libraries(cpe_tests PRIVATE cpe_core GTest::gtest_main)
 
     # registers every TEST as its own ctest entry, instead of one lumped entry
