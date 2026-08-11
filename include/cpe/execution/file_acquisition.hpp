@@ -1,8 +1,12 @@
 #pragma once
 
 #include <cpe/execution/bytes_acquisition.hpp>
-#include <filesystem>
-#include <cstdio>
+#include <cstddef>	// std::byte
+#include <cstdio>	// std::FILE*
+#include <filesystem>	// std::filesystem::path
+#include <memory>	// std::unique_ptr
+#include <nonstd/expected.hpp>	// nonstd::expected
+#include <vector>	// std::vector
 
 namespace cpe {
 	struct FileDeleter {

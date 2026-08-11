@@ -1,9 +1,9 @@
 #pragma once
 
 #include <cpe/error/pipeline_error.hpp>
-#include <vector>
-#include <cstddef>
-#include <nonstd/expected.hpp>
+#include <vector>	// std::vector
+#include <cstddef>	// std::byte
+#include <nonstd/expected.hpp>	// nonstd::expected
 
 namespace cpe {
 	class BytesAcquisition {

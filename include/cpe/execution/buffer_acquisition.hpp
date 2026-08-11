@@ -1,6 +1,9 @@
 #pragma once
 
 #include <cpe/execution/bytes_acquisition.hpp>
+#include <vector>   // std::vector
+#include <cstddef>	// std::byte
+#include <nonstd/expected.hpp>	// nonstd::expected
 
 namespace cpe {
 	class BufferAcquisition: public BytesAcquisition {
