@@ -8,8 +8,12 @@ project(cpe VERSION 0.1.0 LANGUAGES CXX)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # create the library cpe_core with specific specs to respect: C++20
-# Anything that needs Record/Value links against this
-add_library(cpe_core src/data_model.cpp src/execution/buffer_acquisition.cpp)
+# Anything that needs the core types or components links against this
+add_library(cpe_core
+    src/data_model.cpp
+    src/execution/buffer_acquisition.cpp
+    src/execution/file_acquisition.cpp)
+
 target_compile_features(cpe_core PUBLIC cxx_std_20)
 target_include_directories(cpe_core PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/include)
@@ -50,11 +54,19 @@ if(CPE_BUILD_TESTS)
     FetchContent_MakeAvailable(googletest)
 
     enable_testing()
+    include(GoogleTest)
 
-    add_executable(cpe_tests tests/data_model_test.cpp tests/buffer_acquisition_test.cpp)
+    add_executable(cpe_tests
+        tests/data_model_test.cpp
+        tests/buffer_acquisition_test.cpp
+        tests/file_acquisition_test.cpp)
     target_link_libraries(cpe_tests PRIVATE cpe_core GTest::gtest_main)
 
+    # File acquisition tests read a fixture from disk; CMake injects its absolute path.
+    target_compile_definitions(cpe_tests PRIVATE
+        CPE_FIXTURE_SMALL="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/small.txt"
+        CPE_FIXTURE_LARGE="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/large.txt")
+
     # registers every TEST as its own ctest entry, instead of one lumped entry
-    include(GoogleTest)
     gtest_discover_tests(cpe_tests)
 endif()
