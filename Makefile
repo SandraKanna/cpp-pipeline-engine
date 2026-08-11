@@ -23,7 +23,7 @@ release-clang:
 	cmake --preset release-clang && cmake --build --preset release-clang
 
 # run the complete ci workflow: check compilation with both compilers + perform GoogleTests
-ci: release-gcc release-clang test
+ci: release-gcc release-clang tidy test
 
 clean:
 	rm -rf build
