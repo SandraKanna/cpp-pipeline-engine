@@ -1,7 +1,7 @@
 #include <cpe/execution/file_acquisition.hpp>
 
 #include <cerrno> // errno
-#include <cstdio>	// std::FILE* std::fopen
+#include <cstdio>	// std::FILE* std::fopen std::ferror
 #include <utility> // std::move
 #include <cstddef>	// std::byte
 #include <filesystem>	// std::filesystem::path
@@ -32,6 +32,20 @@ namespace cpe {
 		static constexpr std::size_t chunk_size = 64UL * 1024;
 		std::vector<std::byte> chunk(chunk_size);
 		std::size_t n = std::fread(chunk.data(), 1, chunk_size, file_.get());
+
+		// Capture errno right after fread, before any other call overwrites it,
+		// same discipline as the fopen path above (guarantee errno on failure)
+		int const err = errno;
+		if (n == 0) {
+			// fread returns 0 on both EOF and read error; the stream indicators tell them apart:
+			// ferror for a mid-stream pipeline error and feof for normal EOF.
+			if (std::ferror(file_.get()) != 0) {
+				return nonstd::make_unexpected(PipelineError{
+					.code = std::error_code(err, std::generic_category()),
+					.message = "cannot read file: " + path_.string()});
+			}
+		}
+
 		chunk.resize(n);
 		return chunk;
 	}
