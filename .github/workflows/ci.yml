@@ -91,4 +91,4 @@ jobs:
     - name: Configure
       run: cmake --preset dev
     - name: Run clang-tidy
-      run: clang-tidy-22 -p build/dev src/data_model.cpp tests/data_model_test.cpp
+      run: clang-tidy-22 -p build/dev src/data_model.cpp src/execution/buffer_acquisition.cpp src/execution/file_acquisition.cpp tests/data_model_test.cpp tests/buffer_acquisition_test.cpp tests/file_acquisition_test.cpp
