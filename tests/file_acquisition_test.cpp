@@ -1,12 +1,12 @@
 #include <cpe/execution/file_acquisition.hpp>
 
 #include <cstddef>
-#include <string>
-#include <system_error>
-#include <vector>
 #include <filesystem>
 #include <fstream>
+#include <string>
+#include <system_error>
 #include <unistd.h>
+#include <vector>
 
 #include <gtest/gtest.h>
 
