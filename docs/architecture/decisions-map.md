@@ -34,7 +34,7 @@ As the project's context highlights, this is meant to be a production-ready deli
 ## Observability [pending]
 The conceptual model marks `errors & logs` as a transversal concern observable from outside the library. Whether the library emits its own log stream, and what shape the final execution report takes, are open decisions separate from the error model. Deferred to their own sessions.
 
-## Extensibility [in-progress]
+## Extensibility [resolved]
 Extensibility here means the ability for a user to add a new component of their own to the pipeline. Functional drivers 1 and 3, together with quality attribute 1 (extensibility), define decoupling as the core design principle. Driver 1 lets the user add their own components. Driver 3 lets them compose those (and the library's own) components into a pipeline at runtime, via configuration.
 
 This block decides the contract any component must satisfy, whether it ships with the library or comes from the user. The facade the user interacts with (builder, configuration schema, resolution from a name to a concrete component) belongs to API usability.
