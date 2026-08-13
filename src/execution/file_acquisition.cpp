@@ -5,6 +5,7 @@
 #include <utility> // std::move
 #include <cstddef>	// std::byte
 #include <filesystem>	// std::filesystem::path
+#include <memory>	// std::unique_ptr::get std::unique_ptr::reset
 #include <nonstd/expected.hpp>	// nonstd::*
 #include <system_error>	// std::error_code std::generic_category
 #include <vector>	// std::vector
@@ -17,11 +18,12 @@ namespace cpe {
 		if (!file_) {
 			// "rb": raw bytes, no newline translation. fopen guarantees errno on failure (POSIX).
 			std::FILE* raw = std::fopen(path_.c_str(), "rb");
+			int const err1 = errno;
 			if (raw == nullptr) {
 				// Read errno on the line right after the failure: any call in between could
 				// overwrite it. generic_category() maps it to std::errc for comparison.
 				return nonstd::make_unexpected(PipelineError{
-					.code = std::error_code(errno, std::generic_category()),
+					.code = std::error_code(err1, std::generic_category()),
 					.message = "cannot open file: " + path_.string()});
 			}
 			file_.reset(raw);
@@ -35,13 +37,13 @@ namespace cpe {
 
 		// Capture errno right after fread, before any other call overwrites it,
 		// same discipline as the fopen path above (guarantee errno on failure)
-		int const err = errno;
+		int const err2 = errno;
 		if (n == 0) {
 			// fread returns 0 on both EOF and read error; the stream indicators tell them apart:
 			// ferror for a mid-stream pipeline error and feof for normal EOF.
 			if (std::ferror(file_.get()) != 0) {
 				return nonstd::make_unexpected(PipelineError{
-					.code = std::error_code(err, std::generic_category()),
+					.code = std::error_code(err2, std::generic_category()),
 					.message = "cannot read file: " + path_.string()});
 			}
 		}

@@ -15,9 +15,18 @@ namespace cpe {
     	void operator()(std::FILE* f) const noexcept { std::fclose(f); }
 	};
 
+	/// Acquires bytes from a file, read lazily in fixed-size chunks.
+	///
+	/// The file is opened on the first read(), not at construction, so a failure
+	/// to open is reported as a PipelineError through read() rather than from the
+	/// constructor. Each read() returns the next chunk; an empty vector signals
+	/// the end of the file. The file is closed when the component is destroyed.
 	class FileAcquisition : public BytesAcquisition {
 	public:
+		/// path: the file to read; not opened until the first read().
 		explicit FileAcquisition(std::filesystem::path path);
+
+		/// read() as specified by BytesAcquisition
 		[[nodiscard]] nonstd::expected<std::vector<std::byte>, PipelineError> read() override;
 		
 	private:
