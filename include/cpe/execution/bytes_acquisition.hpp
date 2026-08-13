@@ -14,6 +14,16 @@ namespace cpe {
 	/// only ever calls read().
 	class BytesAcquisition {
 	public:
+		// Polymorphic base: non-copyable and non-movable to prevent slicing
+		// through a reference to the base. Derived components manage their own
+		// copy/move semantics according to what they hold.
+		BytesAcquisition() = default;
+		BytesAcquisition(const BytesAcquisition&) = delete;
+		BytesAcquisition& operator=(const BytesAcquisition&) = delete;
+		BytesAcquisition(BytesAcquisition&&) = delete;
+		BytesAcquisition& operator=(BytesAcquisition&&) = delete;
+		virtual ~BytesAcquisition() = default;
+
 		/// Produces the next block of bytes from the origin.
 		///
 		/// Each call advances through the stream: successive calls return
@@ -25,7 +35,6 @@ namespace cpe {
 		///         not an error; or a PipelineError if the origin cannot be read.
 		// nonstd::expected becomes std::expected in C++23; only the include and namespace change
 		[[nodiscard]] virtual nonstd::expected<std::vector<std::byte>, PipelineError> read() = 0;
-		virtual ~BytesAcquisition() = default;
 	};
 
 } // namespace cpe
