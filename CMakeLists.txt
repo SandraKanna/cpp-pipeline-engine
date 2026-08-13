@@ -11,8 +11,8 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 # Anything that needs the core types or components links against this
 add_library(cpe_core
     src/data_model.cpp
-    src/execution/buffer_acquisition.cpp
-    src/execution/file_acquisition.cpp)
+    src/acquisition/buffer_acquisition.cpp
+    src/acquisition/file_acquisition.cpp)
 
 target_compile_features(cpe_core PUBLIC cxx_std_20)
 target_include_directories(cpe_core PUBLIC

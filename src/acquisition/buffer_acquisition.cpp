@@ -1,4 +1,4 @@
-#include <cpe/execution/buffer_acquisition.hpp>
+#include <cpe/acquisition/buffer_acquisition.hpp>
 
 #include <utility>	// std::move
 #include <vector>	// std::vector

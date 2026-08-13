@@ -43,7 +43,7 @@ format-check:
 	clang-format --dry-run --Werror $(FORMAT_SRC)
 
 CLANG_TIDY = /opt/homebrew/opt/llvm/bin/clang-tidy
-TIDY_SRC = src/data_model.cpp src/execution/buffer_acquisition.cpp src/execution/file_acquisition.cpp \
+TIDY_SRC = src/data_model.cpp src/acquisition/buffer_acquisition.cpp src/acquisition/file_acquisition.cpp \
            tests/data_model_test.cpp tests/buffer_acquisition_test.cpp tests/file_acquisition_test.cpp
 
 # static analysis: likely bugs, modernization opportunities, performance issues, and
