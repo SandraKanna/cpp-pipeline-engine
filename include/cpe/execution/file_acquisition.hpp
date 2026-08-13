@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cpe/execution/bytes_acquisition.hpp>
+#include <cpe/error/pipeline_error.hpp>
 #include <cstddef>	// std::byte
 #include <cstdio>	// std::FILE*
 #include <filesystem>	// std::filesystem::path
