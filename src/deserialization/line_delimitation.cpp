@@ -1,19 +1,19 @@
 #include <cpe/deserialization/line_delimitation.hpp>
 #include <cpe/error/pipeline_error.hpp>
+#include <cpe/bytes.hpp>
 
-#include <cstddef>	// std::byte
 #include <vector>	// std::vector
 
 #include <nonstd/expected.hpp>	// nonstd::expected
 
 namespace cpe {
-	nonstd::expected<std::vector<std::vector<std::byte>>, PipelineError>
-	LineDelimitation::delimit(std::vector<std::byte> chunk, bool is_final) {
+	nonstd::expected<std::vector<Bytes>, PipelineError>
+	LineDelimitation::delimit(Bytes chunk, bool is_final) {
 		// Join the tail carried from the previous call with the new bytes,
 		// so the scan below sees one contiguous buffer.
 		pending_.insert(pending_.end(), chunk.begin(), chunk.end());
 
-		std::vector<std::vector<std::byte>> records;
+		std::vector<Bytes> records;
 		auto start = pending_.begin();
 		for (auto it = pending_.begin(); it != pending_.end(); ++it) {
 			if (*it == std::byte{'\n'}) {

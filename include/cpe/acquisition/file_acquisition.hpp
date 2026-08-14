@@ -2,12 +2,13 @@
 
 #include <cpe/acquisition/bytes_acquisition.hpp>
 #include <cpe/error/pipeline_error.hpp>
-#include <cstddef>	// std::byte
+#include <cpe/bytes.hpp>
+
 #include <cstdio>	// std::FILE*
 #include <filesystem>	// std::filesystem::path
 #include <memory>	// std::unique_ptr
+
 #include <nonstd/expected.hpp>	// nonstd::expected
-#include <vector>	// std::vector
 
 namespace cpe {
 	struct FileDeleter {
@@ -28,7 +29,7 @@ namespace cpe {
 		explicit FileAcquisition(std::filesystem::path path);
 
 		/// read() as specified by BytesAcquisition
-		[[nodiscard]] nonstd::expected<std::vector<std::byte>, PipelineError> read() override;
+		[[nodiscard]] nonstd::expected<Bytes, PipelineError> read() override;
 		
 	private:
 		// std::FILE: C-style FILE pointer, preferred here so we can consult errno

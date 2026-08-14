@@ -2,8 +2,8 @@
 
 #include <cpe/acquisition/bytes_acquisition.hpp>
 #include <cpe/error/pipeline_error.hpp>
-#include <vector>   // std::vector
-#include <cstddef>	// std::byte
+#include <cpe/bytes.hpp>
+
 #include <nonstd/expected.hpp>	// nonstd::expected
 
 namespace cpe {
@@ -15,12 +15,12 @@ namespace cpe {
 	class BufferAcquisition: public BytesAcquisition {
 	public:
 		/// data: the bytes this component will own and hand to the pipeline.
-		explicit BufferAcquisition(std::vector<std::byte> data);
+		explicit BufferAcquisition(Bytes data);
 
 		/// read() as specified by BytesAcquisition
-		[[nodiscard]] nonstd::expected<std::vector<std::byte>, PipelineError> read() override;
+		[[nodiscard]] nonstd::expected<Bytes, PipelineError> read() override;
 	private:
-		std::vector<std::byte> data_;
+		Bytes data_;
 	};
 
 } // namespace cpe

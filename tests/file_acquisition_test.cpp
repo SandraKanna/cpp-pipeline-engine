@@ -1,4 +1,5 @@
 #include <cpe/acquisition/file_acquisition.hpp>
+#include <cpe/bytes.hpp>
 
 #include <cstddef>
 #include <filesystem>
@@ -6,14 +7,13 @@
 #include <string>
 #include <system_error>
 #include <unistd.h>
-#include <vector>
 
 #include <gtest/gtest.h>
 
 namespace {
 	// Reads the string's characters as raw bytes, for comparing against file contents.
-	std::vector<std::byte> to_bytes(const std::string& s) {
-		std::vector<std::byte> bytes(s.size());
+	cpe::Bytes to_bytes(const std::string& s) {
+		cpe::Bytes bytes(s.size());
 		for (std::size_t i = 0; i < s.size(); ++i) {
 			bytes[i] = static_cast<std::byte>(s[i]);
 		}
@@ -51,7 +51,7 @@ TEST(FileAcquisitionTest, SmallFileReadInOneChunkThenEof) {
 TEST(FileAcquisitionTest, LargeFileReadAcrossMultipleChunks) {
 	cpe::FileAcquisition acquisition(CPE_FIXTURE_LARGE);
 
-	std::vector<std::byte> all;
+	cpe::Bytes all;
 	int reads_with_data = 0;
 	while (true) {
 		auto result = acquisition.read();

@@ -1,8 +1,8 @@
 #pragma once
 
 #include <cpe/error/pipeline_error.hpp>
-#include <vector>	// std::vector
-#include <cstddef>	// std::byte
+#include <cpe/bytes.hpp>
+
 #include <nonstd/expected.hpp>	// nonstd::expected
 
 namespace cpe {
@@ -34,7 +34,7 @@ namespace cpe {
 		///         an empty vector to signal end of stream, a normal outcome and
 		///         not an error; or a PipelineError if the origin cannot be read.
 		// nonstd::expected becomes std::expected in C++23; only the include and namespace change
-		[[nodiscard]] virtual nonstd::expected<std::vector<std::byte>, PipelineError> read() = 0;
+		[[nodiscard]] virtual nonstd::expected<Bytes, PipelineError> read() = 0;
 	};
 
 } // namespace cpe

@@ -1,10 +1,13 @@
 #include <cpe/acquisition/buffer_acquisition.hpp>
+#include <cpe/bytes.hpp>
+
 #include <cstddef>
-#include <gtest/gtest.h>
 #include <vector>
 
+#include <gtest/gtest.h>
+
 TEST(BufferAcquisition, NotEmptyBufferLastCallIsEOF) {
-	std::vector<std::byte> data = {std::byte{'h'}, std::byte{'i'}};
+	cpe::Bytes data = {std::byte{'h'}, std::byte{'i'}};
 	cpe::BufferAcquisition buffer(std::move(data));
 	auto result = buffer.read();
 	ASSERT_TRUE(result.has_value());
@@ -15,7 +18,7 @@ TEST(BufferAcquisition, NotEmptyBufferLastCallIsEOF) {
 }
 
 TEST(BufferAcquisition, EmptyBufferReturnsEOF) {
-	std::vector<std::byte> data = {};
+	cpe::Bytes data = {};
 	cpe::BufferAcquisition buffer(data);
 	auto result = buffer.read(); // EOF
 	ASSERT_TRUE(result.has_value());
@@ -23,7 +26,7 @@ TEST(BufferAcquisition, EmptyBufferReturnsEOF) {
 }
 
 TEST(BufferAcquisition, MultipleCallsAfterEOFReturnsEOF) {
-	std::vector<std::byte> data = {std::byte{'h'}, std::byte{'i'}};
+	cpe::Bytes data = {std::byte{'h'}, std::byte{'i'}};
 	cpe::BufferAcquisition buffer(std::move(data));
 	auto result = buffer.read();
 	ASSERT_TRUE(result.has_value());

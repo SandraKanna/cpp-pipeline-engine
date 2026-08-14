@@ -2,20 +2,21 @@
 
 #include <cpe/deserialization/record_delimitation.hpp>
 #include <cpe/error/pipeline_error.hpp>
+#include <cpe/bytes.hpp>
 
-#include <cstddef>              // std::byte
-#include <nonstd/expected.hpp> // nonstd::expected
 #include <vector>              // std::vector
+
+#include <nonstd/expected.hpp> // nonstd::expected
 
 namespace cpe {
 	/// finds line boundaries (\n and \r\n) in a byte stream.
 	class LineDelimitation: public RecordDelimitation {
 	public:
 		/// delimit() as specified by RecordDelimitation
-		[[nodiscard]] nonstd::expected<std::vector<std::vector<std::byte>>, PipelineError>
-		delimit(std::vector<std::byte> chunk, bool is_final) override;
+		[[nodiscard]] nonstd::expected<std::vector<Bytes>, PipelineError>
+		delimit(Bytes chunk, bool is_final) override;
 
 	private:
-		std::vector<std::byte> pending_; // incomplete tail carried across calls
+		Bytes pending_; // incomplete tail carried across calls
 	};
 } // namespace cpe

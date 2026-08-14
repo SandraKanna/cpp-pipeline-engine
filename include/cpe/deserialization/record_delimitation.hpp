@@ -1,9 +1,9 @@
 #pragma once
 
 #include <cpe/error/pipeline_error.hpp>
-#include <cstddef>	// std::byte
+#include <cpe/bytes.hpp>
+
 #include <nonstd/expected.hpp>	// nonstd::expected
-#include <vector>	// std::vector
 
 namespace cpe {
 	/// Abstract contract for a component that finds record boundaries in a byte stream.
@@ -34,7 +34,7 @@ namespace cpe {
 		/// returns the delimited records (empty vector if the chunk did not
 		///         complete any), or a PipelineError.
 		// nonstd::expected becomes std::expected in C++23; only the include and namespace change
-		[[nodiscard]] virtual nonstd::expected<std::vector<std::vector<std::byte>>, PipelineError>
-		delimit(std::vector<std::byte> chunk, bool is_final) = 0;
+		[[nodiscard]] virtual nonstd::expected<std::vector<Bytes>, PipelineError>
+		delimit(Bytes chunk, bool is_final) = 0;
 	};
 }	// namespace cpe
