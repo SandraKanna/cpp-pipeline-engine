@@ -12,7 +12,8 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 add_library(cpe_core
     src/data_model.cpp
     src/acquisition/buffer_acquisition.cpp
-    src/acquisition/file_acquisition.cpp)
+    src/acquisition/file_acquisition.cpp
+    src/deserialization/line_delimitation.cpp)
 
 target_compile_features(cpe_core PUBLIC cxx_std_20)
 target_include_directories(cpe_core PUBLIC
@@ -59,7 +60,8 @@ if(CPE_BUILD_TESTS)
     add_executable(cpe_tests
         tests/data_model_test.cpp
         tests/buffer_acquisition_test.cpp
-        tests/file_acquisition_test.cpp)
+        tests/file_acquisition_test.cpp
+        tests/line_delimitation_test.cpp)
     target_link_libraries(cpe_tests PRIVATE cpe_core GTest::gtest_main)
 
     # File acquisition tests read a fixture from disk; CMake injects its absolute path.
