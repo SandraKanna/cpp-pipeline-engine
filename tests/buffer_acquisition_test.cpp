@@ -2,7 +2,6 @@
 #include <cpe/bytes.hpp>
 
 #include <cstddef>
-#include <vector>
 
 #include <gtest/gtest.h>
 
