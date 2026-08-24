@@ -91,4 +91,4 @@ jobs:
     - name: Configure
       run: cmake --preset dev
     - name: Run clang-tidy
-      run: clang-tidy-22 -p build/dev src/data_model.cpp src/acquisition/buffer_acquisition.cpp src/acquisition/file_acquisition.cpp src/deserialization/line_delimitation.cpp src/deserialization/raw_parsing.cpp tests/data_model_test.cpp tests/buffer_acquisition_test.cpp tests/file_acquisition_test.cpp tests/line_delimitation_test.cpp tests/raw_parsing_test.cpp
+      run: clang-tidy-22 -p build/dev src/data_model.cpp src/acquisition/buffer_acquisition.cpp src/acquisition/file_acquisition.cpp src/deserialization/line_delimitation.cpp src/deserialization/raw_parsing.cpp src/engine.cpp tests/data_model_test.cpp tests/buffer_acquisition_test.cpp tests/file_acquisition_test.cpp tests/line_delimitation_test.cpp tests/raw_parsing_test.cpp tests/engine_test.cpp
