@@ -13,8 +13,8 @@
 
 #include <memory> // std::unique_ptr
 // #include <optional>     // std::optional
-// #include <system_error> // std::make_error_code, std::errc
-#include <utility> // std::move
+#include <system_error> // std::make_error_code, std::errc
+#include <utility>      // std::move
 
 #include <gtest/gtest.h>
 
@@ -136,23 +136,210 @@ namespace cpe::test {
 		EXPECT_EQ(record3, expected_record_3);
 	}
 
-	// Fin de stream normal. Acquisition devuelve chunk vacío. El motor llama a delimit()
-	// una última vez con is_final=true. Cuando la cola queda vacía, next() devuelve nullopt.
+	// Normal EOS. Acquisition returns empty chunk. The engine calls delimit()
+	// one last time with is_final=true. When the queue is empty, next() returns nullopt.
+	TEST(EngineTest, ReturnsNulloptAtEndOfStream) {
+		auto acquisition_owned = std::make_unique<MockBytesAcquisition>();
+		auto delimitation_owned = std::make_unique<MockRecordDelimitation>();
+		auto parsing_owned = std::make_unique<MockRecordParsing>();
 
-	// Pipeline error desde acquisition. Acquisition devuelve PipelineError. next() lo propaga tal
-	// cual.
+		auto* acquisition = acquisition_owned.get();
+		auto* delimitation = delimitation_owned.get();
+		auto* parsing = parsing_owned.get();
 
-	// Pipeline error desde delimitation. Delimitation devuelve PipelineError. next() lo propaga tal
-	// cual.
+		Bytes bytes = to_bytes("record one\n");
 
-	// Record error con política FailFast. Parsing devuelve RecordError. next() devuelve
-	// PipelineError (promoción).
+		Record expected_record_1;
+		expected_record_1.set("raw", std::string{"record one"});
 
-	// Record error con política Skip. Parsing devuelve RecordError en el primer record
-	// del chunk, ok en el segundo. next() devuelve el segundo record, saltando el primero.
+		EXPECT_CALL(*acquisition, read())
+		    .WillOnce(Return(nonstd::expected<Bytes, PipelineError>(bytes)))
+		    .WillOnce(Return(nonstd::expected<Bytes, PipelineError>(Bytes{})));
 
-	// nullopt es estable después de EOS. Después de que next() devuelva nullopt una vez,
-	// llamadas posteriores siguen devolviendo nullopt sin volver a llamar a read()
-	// (verifica que acquisition_exhausted_ cumple su función).
+		EXPECT_CALL(*delimitation, delimit(_, false))
+		    .WillOnce(Return(nonstd::expected<std::vector<Bytes>, PipelineError>(
+		        std::vector<Bytes>{to_bytes("record one")})));
+		EXPECT_CALL(*delimitation, delimit(_, true))
+		    .WillOnce(
+		        Return(nonstd::expected<std::vector<Bytes>, PipelineError>(std::vector<Bytes>{})));
+
+		EXPECT_CALL(*parsing, parse(_))
+		    .WillOnce(Return(nonstd::expected<Record, RecordError>(expected_record_1)));
+
+		Engine engine(std::move(acquisition_owned), std::move(delimitation_owned),
+		              std::move(parsing_owned), ErrorPolicy::FailFast);
+
+		auto result_1 = engine.next();
+		auto result_2 = engine.next();
+
+		ASSERT_TRUE(result_1.has_value());
+		ASSERT_TRUE(result_1.value().has_value());
+		// NOLINTNEXTLINE(bugprone-unchecked-optional-access): guarded by ASSERT_TRUE above
+		const auto& record1 = *result_1.value();
+		EXPECT_EQ(record1, expected_record_1);
+
+		ASSERT_TRUE(result_2.has_value());
+		EXPECT_FALSE(result_2.value().has_value());
+	}
+
+	// Acquisition returns PipelineError. next() propagates it as-is.
+	TEST(EngineTest, PropagatesPipelineErrorFromAcquisition) {
+		auto acquisition_owned = std::make_unique<MockBytesAcquisition>();
+		auto delimitation_owned = std::make_unique<MockRecordDelimitation>();
+		auto parsing_owned = std::make_unique<MockRecordParsing>();
+
+		auto* acquisition = acquisition_owned.get();
+
+		PipelineError error{.code = std::make_error_code(std::errc::io_error),
+		                    .message = "acquisition failed"};
+
+		EXPECT_CALL(*acquisition, read())
+		    .WillOnce(
+		        Return(nonstd::expected<Bytes, PipelineError>(nonstd::make_unexpected(error))));
+
+		Engine engine(std::move(acquisition_owned), std::move(delimitation_owned),
+		              std::move(parsing_owned), ErrorPolicy::FailFast);
+
+		auto result = engine.next();
+
+		ASSERT_FALSE(result.has_value());
+		EXPECT_EQ(result.error().code, error.code);
+		EXPECT_EQ(result.error().message, error.message);
+	}
+
+	// Delimitation returns PipelineError. next() propagates it as-is.
+	TEST(EngineTest, PropagatesPipelineErrorFromDelimitation) {
+		auto acquisition_owned = std::make_unique<MockBytesAcquisition>();
+		auto delimitation_owned = std::make_unique<MockRecordDelimitation>();
+		auto parsing_owned = std::make_unique<MockRecordParsing>();
+
+		auto* acquisition = acquisition_owned.get();
+		auto* delimitation = delimitation_owned.get();
+
+		Bytes bytes = to_bytes("record one\n");
+
+		PipelineError error{.code = std::make_error_code(std::errc::io_error),
+		                    .message = "delimitation failed"};
+
+		EXPECT_CALL(*acquisition, read())
+		    .WillOnce(Return(nonstd::expected<Bytes, PipelineError>(bytes)));
+
+		EXPECT_CALL(*delimitation, delimit(_, false))
+		    .WillOnce(Return(nonstd::expected<std::vector<Bytes>, PipelineError>(
+		        nonstd::make_unexpected(error))));
+
+		Engine engine(std::move(acquisition_owned), std::move(delimitation_owned),
+		              std::move(parsing_owned), ErrorPolicy::FailFast);
+
+		auto result = engine.next();
+
+		ASSERT_FALSE(result.has_value());
+		EXPECT_EQ(result.error().code, error.code);
+		EXPECT_EQ(result.error().message, error.message);
+	}
+
+	// Parse fails under FailFast. next() promotes the RecordError to a
+	// PipelineError (ADR-013).
+	TEST(EngineTest, PromotesRecordErrorUnderFailFast) {
+		auto acquisition_owned = std::make_unique<MockBytesAcquisition>();
+		auto delimitation_owned = std::make_unique<MockRecordDelimitation>();
+		auto parsing_owned = std::make_unique<MockRecordParsing>();
+
+		auto* acquisition = acquisition_owned.get();
+		auto* delimitation = delimitation_owned.get();
+		auto* parsing = parsing_owned.get();
+
+		Bytes bytes = to_bytes("record one\n");
+
+		EXPECT_CALL(*acquisition, read())
+		    .WillOnce(Return(nonstd::expected<Bytes, PipelineError>(bytes)));
+
+		EXPECT_CALL(*delimitation, delimit(_, false))
+		    .WillOnce(Return(nonstd::expected<std::vector<Bytes>, PipelineError>(
+		        std::vector<Bytes>{to_bytes("record one")})));
+
+		EXPECT_CALL(*parsing, parse(_))
+		    .WillOnce(Return(
+		        nonstd::expected<Record, RecordError>(nonstd::make_unexpected(RecordError{}))));
+
+		Engine engine(std::move(acquisition_owned), std::move(delimitation_owned),
+		              std::move(parsing_owned), ErrorPolicy::FailFast);
+
+		auto result = engine.next();
+
+		ASSERT_FALSE(result.has_value());
+		EXPECT_EQ(result.error().code, std::make_error_code(std::errc::protocol_error));
+		EXPECT_EQ(result.error().message, "record parsing failed");
+	}
+
+	// Parse fails on the first record under Skip. next() discards it and
+	// returns the second (ADR-013).
+	TEST(EngineTest, SkipsFailingRecord) {
+		auto acquisition_owned = std::make_unique<MockBytesAcquisition>();
+		auto delimitation_owned = std::make_unique<MockRecordDelimitation>();
+		auto parsing_owned = std::make_unique<MockRecordParsing>();
+
+		auto* acquisition = acquisition_owned.get();
+		auto* delimitation = delimitation_owned.get();
+		auto* parsing = parsing_owned.get();
+
+		Bytes bytes = to_bytes("bad\ngood\n");
+
+		Record expected_record_2;
+		expected_record_2.set("raw", std::string{"good"});
+
+		EXPECT_CALL(*acquisition, read())
+		    .WillOnce(Return(nonstd::expected<Bytes, PipelineError>(bytes)));
+
+		EXPECT_CALL(*delimitation, delimit(_, false))
+		    .WillOnce(Return(nonstd::expected<std::vector<Bytes>, PipelineError>(
+		        std::vector<Bytes>{to_bytes("bad"), to_bytes("good")})));
+
+		EXPECT_CALL(*parsing, parse(_))
+		    .WillOnce(Return(
+		        nonstd::expected<Record, RecordError>(nonstd::make_unexpected(RecordError{}))))
+		    .WillOnce(Return(nonstd::expected<Record, RecordError>(expected_record_2)));
+
+		Engine engine(std::move(acquisition_owned), std::move(delimitation_owned),
+		              std::move(parsing_owned), ErrorPolicy::Skip);
+
+		auto result = engine.next();
+
+		ASSERT_TRUE(result.has_value());
+		ASSERT_TRUE(result.value().has_value());
+		// NOLINTNEXTLINE(bugprone-unchecked-optional-access): guarded by ASSERT_TRUE above
+		const auto& record = *result.value();
+		EXPECT_EQ(record, expected_record_2);
+	}
+
+	// After the first nullopt, further next() calls stay nullopt without
+	// calling read() again (acquisition_exhausted_ guards the loop).
+	TEST(EngineTest, NulloptIsStableAfterEndOfStream) {
+		auto acquisition_owned = std::make_unique<MockBytesAcquisition>();
+		auto delimitation_owned = std::make_unique<MockRecordDelimitation>();
+		auto parsing_owned = std::make_unique<MockRecordParsing>();
+
+		auto* acquisition = acquisition_owned.get();
+		auto* delimitation = delimitation_owned.get();
+
+		EXPECT_CALL(*acquisition, read())
+		    .WillOnce(Return(nonstd::expected<Bytes, PipelineError>(Bytes{})));
+
+		EXPECT_CALL(*delimitation, delimit(_, true))
+		    .WillOnce(
+		        Return(nonstd::expected<std::vector<Bytes>, PipelineError>(std::vector<Bytes>{})));
+
+		Engine engine(std::move(acquisition_owned), std::move(delimitation_owned),
+		              std::move(parsing_owned), ErrorPolicy::FailFast);
+
+		auto result_1 = engine.next();
+		auto result_2 = engine.next();
+
+		ASSERT_TRUE(result_1.has_value());
+		EXPECT_FALSE(result_1.value().has_value());
+
+		ASSERT_TRUE(result_2.has_value());
+		EXPECT_FALSE(result_2.value().has_value());
+	}
 
 } // namespace cpe::test
