@@ -13,7 +13,7 @@
 |---------|----------------------------------------|
 | Language| C++20                                  |
 | Build   | CMake                                  |
-| Tests   | GoogleTest                             |
+| Tests   | GoogleTest + GMock                     |
 | Quality | Clang-format + Clang-tidy + sanitizers |
 | CI      | GitHub Actions                         |
 
@@ -28,4 +28,4 @@
 
 ## Status
 
-Implemented so far: the data model, and the acquisition stage with in-memory and file components. The rest is designed but not yet built.
+Implemented so far: the data model, the acquisition stage (in-memory and file components), record delimitation, record parsing, and the pipeline engine that orchestrates them under a pull-based model, returning records one at a time. Serialization and delivery are designed but not yet built.
