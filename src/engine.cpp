@@ -40,8 +40,9 @@ namespace cpe {
 				// FailFast: promote the RecordError to a PipelineError
 				// (ADR-013). RecordError is empty today; the message will
 				// be refined once it carries structured context.
-				return nonstd::make_unexpected(PipelineError{
-				    std::make_error_code(std::errc::protocol_error), "record parsing failed"});
+				return nonstd::make_unexpected(
+				    PipelineError{.code = std::make_error_code(std::errc::protocol_error),
+				                  .message = "record parsing failed"});
 			}
 
 			// Queue empty and acquisition already exhausted: no more
