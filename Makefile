@@ -44,9 +44,9 @@ format-check:
 
 CLANG_TIDY = /opt/homebrew/opt/llvm/bin/clang-tidy
 TIDY_SRC = src/data_model.cpp src/acquisition/buffer_acquisition.cpp src/acquisition/file_acquisition.cpp \
-		   src/deserialization/line_delimitation.cpp src/deserialization/raw_parsing.cpp\
+		   src/deserialization/line_delimitation.cpp src/deserialization/raw_parsing.cpp src/engine.cpp\
 		   tests/data_model_test.cpp tests/buffer_acquisition_test.cpp tests/file_acquisition_test.cpp \
-		   tests/line_delimitation_test.cpp tests/raw_parsing_test.cpp
+		   tests/line_delimitation_test.cpp tests/raw_parsing_test.cpp tests/engine_test.cpp
 
 # static analysis: likely bugs, modernization opportunities, performance issues, and
 # naming/readability conventions. It needs the compilation database (from a configured build)

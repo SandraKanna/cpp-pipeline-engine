@@ -14,7 +14,8 @@ add_library(cpe_core
     src/acquisition/buffer_acquisition.cpp
     src/acquisition/file_acquisition.cpp
     src/deserialization/line_delimitation.cpp
-    src/deserialization/raw_parsing.cpp)
+    src/deserialization/raw_parsing.cpp
+    src/engine.cpp)
 
 target_compile_features(cpe_core PUBLIC cxx_std_20)
 target_include_directories(cpe_core PUBLIC
@@ -63,8 +64,9 @@ if(CPE_BUILD_TESTS)
         tests/buffer_acquisition_test.cpp
         tests/file_acquisition_test.cpp
         tests/line_delimitation_test.cpp
-        tests/raw_parsing_test.cpp)
-    target_link_libraries(cpe_tests PRIVATE cpe_core GTest::gtest_main)
+        tests/raw_parsing_test.cpp
+        tests/engine_test.cpp)
+    target_link_libraries(cpe_tests PRIVATE cpe_core GTest::gmock_main)
 
     # File acquisition tests read a fixture from disk; CMake injects its absolute path.
     target_compile_definitions(cpe_tests PRIVATE

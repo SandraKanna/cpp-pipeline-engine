@@ -11,6 +11,7 @@ namespace cpe {
 	struct Value; // forward declaration: Fields and Value itself name Value before it is defined
 
 	// Fields: name-to-value mapping that Record and Object share (ADR-003)
+	// NOLINTNEXTLINE(bugprone-exception-escape): expected-lite false positive
 	class Fields {
 	public:
 		// Adds a field. Returns false without modifying the record if the name
