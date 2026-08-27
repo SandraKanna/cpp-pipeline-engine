@@ -52,8 +52,12 @@ From quality attribute 3. The design must put the user first: the heaviest part 
 
 **Open:** when a format allows more than one possible cut (a JSON array read as one record or as many), who decides: the user at configuration time, or the tool at run-time? *Not resolved here, this document only scopes the question.*
 
-## Module isolation [pending]
-Functional driver 4, together with the constraint that AWS integration will arrive in later stages, make this decision straightforward: the library's components must be built as separate, independently buildable modules, and heavy dependencies must be optional. In particular the AWS SDK, which is heavy enough to slow down compilation and increase the footprint for users who don't need it.
+## Module isolation [resolved]
+Functional driver 4, together with the constraint that AWS integration will arrive in later stages, drives this category: a consumer who does not need a heavy dependency should not pay for it in compilation time or footprint. The AWS SDK is the concrete case that motivates the category, heavy enough to slow down compilation and increase the footprint for users who do not integrate with AWS. Other heavy dependencies may appear in later phases and fall under the same principle.
+
+**Open:** what unit of the library is packaged as a build target, and how many targets the library ships.
+
+**Open:** what mechanism makes a heavy dependency avoidable for a consumer who does not use it.
 
 ## Testability [in-progress]
 From quality attributes 2 (testability) and 1 (extensibility). Quality attribute 2 states that testability is made cheap by the decoupling that extensibility already demands. The testing tools themselves are already fixed by the project's constraints (GoogleTest/GMock). What this category decides is the shape components must have for those tools to work well against them: internal interfaces must stay minimal, so the surface to mock stays small and every use case (error policies, call order, edge cases) can be tested in isolation without touching disk or network.
