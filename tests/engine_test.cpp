@@ -66,7 +66,7 @@ namespace cpe::test {
 
 		// STUDY: build the engine, giving it ownership of the components
 		Engine engine(std::move(acquisition_owned), std::move(delimitation_owned),
-		              std::move(parsing_owned), ErrorPolicy::FailFast);
+		              std::move(parsing_owned), {}, ErrorPolicy::FailFast);
 
 		// STUDY: the engine should call the components and return what was programmed
 		auto result = engine.next();
@@ -111,7 +111,7 @@ namespace cpe::test {
 		    .WillOnce(Return(nonstd::expected<Record, RecordError>(expected_record_3)));
 
 		Engine engine(std::move(acquisition_owned), std::move(delimitation_owned),
-		              std::move(parsing_owned), ErrorPolicy::FailFast);
+		              std::move(parsing_owned), {}, ErrorPolicy::FailFast);
 
 		auto result_1 = engine.next();
 		auto result_2 = engine.next();
@@ -167,7 +167,7 @@ namespace cpe::test {
 		    .WillOnce(Return(nonstd::expected<Record, RecordError>(expected_record_1)));
 
 		Engine engine(std::move(acquisition_owned), std::move(delimitation_owned),
-		              std::move(parsing_owned), ErrorPolicy::FailFast);
+		              std::move(parsing_owned), {}, ErrorPolicy::FailFast);
 
 		auto result_1 = engine.next();
 		auto result_2 = engine.next();
@@ -198,7 +198,7 @@ namespace cpe::test {
 		        Return(nonstd::expected<Bytes, PipelineError>(nonstd::make_unexpected(error))));
 
 		Engine engine(std::move(acquisition_owned), std::move(delimitation_owned),
-		              std::move(parsing_owned), ErrorPolicy::FailFast);
+		              std::move(parsing_owned), {}, ErrorPolicy::FailFast);
 
 		auto result = engine.next();
 
@@ -229,7 +229,7 @@ namespace cpe::test {
 		        nonstd::make_unexpected(error))));
 
 		Engine engine(std::move(acquisition_owned), std::move(delimitation_owned),
-		              std::move(parsing_owned), ErrorPolicy::FailFast);
+		              std::move(parsing_owned), {}, ErrorPolicy::FailFast);
 
 		auto result = engine.next();
 
@@ -263,7 +263,7 @@ namespace cpe::test {
 		        nonstd::expected<Record, RecordError>(nonstd::make_unexpected(RecordError{}))));
 
 		Engine engine(std::move(acquisition_owned), std::move(delimitation_owned),
-		              std::move(parsing_owned), ErrorPolicy::FailFast);
+		              std::move(parsing_owned), {}, ErrorPolicy::FailFast);
 
 		auto result = engine.next();
 
@@ -301,7 +301,7 @@ namespace cpe::test {
 		    .WillOnce(Return(nonstd::expected<Record, RecordError>(expected_record_2)));
 
 		Engine engine(std::move(acquisition_owned), std::move(delimitation_owned),
-		              std::move(parsing_owned), ErrorPolicy::Skip);
+		              std::move(parsing_owned), {}, ErrorPolicy::Skip);
 
 		auto result = engine.next();
 
@@ -330,7 +330,7 @@ namespace cpe::test {
 		        Return(nonstd::expected<std::vector<Bytes>, PipelineError>(std::vector<Bytes>{})));
 
 		Engine engine(std::move(acquisition_owned), std::move(delimitation_owned),
-		              std::move(parsing_owned), ErrorPolicy::FailFast);
+		              std::move(parsing_owned), {}, ErrorPolicy::FailFast);
 
 		auto result_1 = engine.next();
 		auto result_2 = engine.next();
