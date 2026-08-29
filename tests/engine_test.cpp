@@ -11,10 +11,10 @@
 
 #include <nonstd/expected.hpp> // nonstd::expected, nonstd::make_unexpected
 
+#include <initializer_list> // std::initializer_list
 #include <memory> // std::unique_ptr
-// #include <optional>     // std::optional
 #include <system_error> // std::make_error_code, std::errc
-#include <utility>      // std::move
+#include <utility>      // std::move std::pair
 
 #include <gtest/gtest.h>
 
@@ -31,6 +31,29 @@ namespace {
 			bytes[i] = static_cast<std::byte>(s[i]);
 		}
 		return bytes;
+	}
+
+	// Wraps a value as a successful expected. The error type is deduced from the
+	// call site (typically the return type expected by Return(...) in GMock).
+	template <typename E, typename T>
+	nonstd::expected<T, E> success(T value) {
+		return nonstd::expected<T, E>(std::move(value));
+	}
+
+	// Wraps an error as a failed expected. The success type must be given
+	// explicitly since only the error is available.
+	template <typename T, typename E>
+	nonstd::expected<T, E> failure(E error) {
+		return nonstd::expected<T, E>(nonstd::make_unexpected(std::move(error)));
+	}
+
+	// Builds a Record from a list of (name, value) pairs, in the given order.
+	cpe::Record record_with(std::initializer_list<std::pair<std::string, cpe::Value>> fields) {
+		cpe::Record record;
+		for (const auto& [name, value] : fields) {
+			record.set(name, value);
+		}
+		return record;
 	}
 } // namespace
 
@@ -50,19 +73,17 @@ namespace cpe::test {
 
 		Bytes bytes = to_bytes("hi");
 
-		Record expected_record;
-		expected_record.set("raw", std::string{"hi"});
+		Record expected_record = record_with({{"raw", std::string{"hi"}}});
 
 		// STUDY: program the engine, for it to know what each component's behavior should be
 		EXPECT_CALL(*acquisition, read())
-		    .WillOnce(Return(nonstd::expected<Bytes, PipelineError>(bytes)));
+		    .WillOnce(Return(success<PipelineError>(bytes)));
 
 		EXPECT_CALL(*delimitation, delimit(_, false))
-		    .WillOnce(Return(
-		        nonstd::expected<std::vector<Bytes>, PipelineError>(std::vector<Bytes>{bytes})));
+		    .WillOnce(Return(success<PipelineError>(std::vector<Bytes>{bytes})));
 
 		EXPECT_CALL(*parsing, parse(_))
-		    .WillOnce(Return(nonstd::expected<Record, RecordError>(expected_record)));
+		    .WillOnce(Return(success<RecordError>(expected_record)));
 
 		// STUDY: build the engine, giving it ownership of the components
 		Engine engine(std::move(acquisition_owned), std::move(delimitation_owned),
@@ -91,24 +112,21 @@ namespace cpe::test {
 
 		Bytes bytes = to_bytes("record one\nrecord two\nrecord three");
 
-		Record expected_record_1;
-		expected_record_1.set("raw", std::string{"record one"});
-		Record expected_record_2;
-		expected_record_2.set("raw", std::string{"record two"});
-		Record expected_record_3;
-		expected_record_3.set("raw", std::string{"record three"});
+		Record expected_record_1 = record_with({{"raw", std::string{"record one"}}});
+		Record expected_record_2 = record_with({{"raw", std::string{"record two"}}});
+		Record expected_record_3 = record_with({{"raw", std::string{"record three"}}});
 
 		EXPECT_CALL(*acquisition, read())
-		    .WillOnce(Return(nonstd::expected<Bytes, PipelineError>(bytes)));
+		    .WillOnce(Return(success<PipelineError>(bytes)));
 
 		EXPECT_CALL(*delimitation, delimit(_, false))
-		    .WillOnce(Return(nonstd::expected<std::vector<Bytes>, PipelineError>(std::vector<Bytes>{
-		        to_bytes("record one"), to_bytes("record two"), to_bytes("record three")})));
+		    .WillOnce(Return(success<PipelineError>(std::vector<Bytes>{
+    			to_bytes("record one"), to_bytes("record two"), to_bytes("record three")})));
 
 		EXPECT_CALL(*parsing, parse(_))
-		    .WillOnce(Return(nonstd::expected<Record, RecordError>(expected_record_1)))
-		    .WillOnce(Return(nonstd::expected<Record, RecordError>(expected_record_2)))
-		    .WillOnce(Return(nonstd::expected<Record, RecordError>(expected_record_3)));
+		    .WillOnce(Return(success<RecordError>(expected_record_1)))
+		    .WillOnce(Return(success<RecordError>(expected_record_2)))
+		    .WillOnce(Return(success<RecordError>(expected_record_3)));
 
 		Engine engine(std::move(acquisition_owned), std::move(delimitation_owned),
 		              std::move(parsing_owned), {}, ErrorPolicy::FailFast);
@@ -149,22 +167,20 @@ namespace cpe::test {
 
 		Bytes bytes = to_bytes("record one\n");
 
-		Record expected_record_1;
-		expected_record_1.set("raw", std::string{"record one"});
+		Record expected_record_1 = record_with({{"raw", std::string{"record one"}}});
 
 		EXPECT_CALL(*acquisition, read())
-		    .WillOnce(Return(nonstd::expected<Bytes, PipelineError>(bytes)))
-		    .WillOnce(Return(nonstd::expected<Bytes, PipelineError>(Bytes{})));
+		    .WillOnce(Return(success<PipelineError>(bytes)))
+		    .WillOnce(Return(success<PipelineError>(Bytes{})));
 
 		EXPECT_CALL(*delimitation, delimit(_, false))
-		    .WillOnce(Return(nonstd::expected<std::vector<Bytes>, PipelineError>(
+		    .WillOnce(Return(success<PipelineError>(
 		        std::vector<Bytes>{to_bytes("record one")})));
 		EXPECT_CALL(*delimitation, delimit(_, true))
-		    .WillOnce(
-		        Return(nonstd::expected<std::vector<Bytes>, PipelineError>(std::vector<Bytes>{})));
+		    .WillOnce(Return(success<PipelineError>(std::vector<Bytes>{})));
 
 		EXPECT_CALL(*parsing, parse(_))
-		    .WillOnce(Return(nonstd::expected<Record, RecordError>(expected_record_1)));
+		    .WillOnce(Return(success<RecordError>(expected_record_1)));
 
 		Engine engine(std::move(acquisition_owned), std::move(delimitation_owned),
 		              std::move(parsing_owned), {}, ErrorPolicy::FailFast);
@@ -194,8 +210,7 @@ namespace cpe::test {
 		                    .message = "acquisition failed"};
 
 		EXPECT_CALL(*acquisition, read())
-		    .WillOnce(
-		        Return(nonstd::expected<Bytes, PipelineError>(nonstd::make_unexpected(error))));
+		    .WillOnce(Return(failure<Bytes>(error)));
 
 		Engine engine(std::move(acquisition_owned), std::move(delimitation_owned),
 		              std::move(parsing_owned), {}, ErrorPolicy::FailFast);
@@ -222,11 +237,10 @@ namespace cpe::test {
 		                    .message = "delimitation failed"};
 
 		EXPECT_CALL(*acquisition, read())
-		    .WillOnce(Return(nonstd::expected<Bytes, PipelineError>(bytes)));
+		    .WillOnce(Return(success<PipelineError>(bytes)));
 
 		EXPECT_CALL(*delimitation, delimit(_, false))
-		    .WillOnce(Return(nonstd::expected<std::vector<Bytes>, PipelineError>(
-		        nonstd::make_unexpected(error))));
+		    .WillOnce(Return(failure<std::vector<Bytes>>(error)));
 
 		Engine engine(std::move(acquisition_owned), std::move(delimitation_owned),
 		              std::move(parsing_owned), {}, ErrorPolicy::FailFast);
@@ -252,15 +266,14 @@ namespace cpe::test {
 		Bytes bytes = to_bytes("record one\n");
 
 		EXPECT_CALL(*acquisition, read())
-		    .WillOnce(Return(nonstd::expected<Bytes, PipelineError>(bytes)));
+		    .WillOnce(Return(success<PipelineError>(bytes)));
 
 		EXPECT_CALL(*delimitation, delimit(_, false))
-		    .WillOnce(Return(nonstd::expected<std::vector<Bytes>, PipelineError>(
+		    .WillOnce(Return(success<PipelineError>(
 		        std::vector<Bytes>{to_bytes("record one")})));
 
 		EXPECT_CALL(*parsing, parse(_))
-		    .WillOnce(Return(
-		        nonstd::expected<Record, RecordError>(nonstd::make_unexpected(RecordError{}))));
+		    .WillOnce(Return(failure<Record>(RecordError{})));
 
 		Engine engine(std::move(acquisition_owned), std::move(delimitation_owned),
 		              std::move(parsing_owned), {}, ErrorPolicy::FailFast);
@@ -285,20 +298,18 @@ namespace cpe::test {
 
 		Bytes bytes = to_bytes("bad\ngood\n");
 
-		Record expected_record_2;
-		expected_record_2.set("raw", std::string{"good"});
+		Record expected_record_2 = record_with({{"raw", std::string{"good"}}});
 
 		EXPECT_CALL(*acquisition, read())
-		    .WillOnce(Return(nonstd::expected<Bytes, PipelineError>(bytes)));
+		    .WillOnce(Return(success<PipelineError>(bytes)));
 
 		EXPECT_CALL(*delimitation, delimit(_, false))
-		    .WillOnce(Return(nonstd::expected<std::vector<Bytes>, PipelineError>(
+		    .WillOnce(Return(success<PipelineError>(
 		        std::vector<Bytes>{to_bytes("bad"), to_bytes("good")})));
 
 		EXPECT_CALL(*parsing, parse(_))
-		    .WillOnce(Return(
-		        nonstd::expected<Record, RecordError>(nonstd::make_unexpected(RecordError{}))))
-		    .WillOnce(Return(nonstd::expected<Record, RecordError>(expected_record_2)));
+		    .WillOnce(Return(failure<Record>(RecordError{})))
+		    .WillOnce(Return(success<RecordError>(expected_record_2)));
 
 		Engine engine(std::move(acquisition_owned), std::move(delimitation_owned),
 		              std::move(parsing_owned), {}, ErrorPolicy::Skip);
@@ -323,11 +334,10 @@ namespace cpe::test {
 		auto* delimitation = delimitation_owned.get();
 
 		EXPECT_CALL(*acquisition, read())
-		    .WillOnce(Return(nonstd::expected<Bytes, PipelineError>(Bytes{})));
+		    .WillOnce(Return(success<PipelineError>(Bytes{})));
 
 		EXPECT_CALL(*delimitation, delimit(_, true))
-		    .WillOnce(
-		        Return(nonstd::expected<std::vector<Bytes>, PipelineError>(std::vector<Bytes>{})));
+		    .WillOnce(Return(success<PipelineError>(std::vector<Bytes>{})));
 
 		Engine engine(std::move(acquisition_owned), std::move(delimitation_owned),
 		              std::move(parsing_owned), {}, ErrorPolicy::FailFast);
@@ -356,16 +366,14 @@ namespace cpe::test {
 
 		Bytes bytes = to_bytes("hi");
 
-		Record expected_record;
-		expected_record.set("raw", std::string{"hi"});
+		Record expected_record = record_with({{"raw", std::string{"hi"}}});
 
 		EXPECT_CALL(*acquisition, read())
-		    .WillOnce(Return(nonstd::expected<Bytes, PipelineError>(bytes)));
+		    .WillOnce(Return(success<PipelineError>(bytes)));
 		EXPECT_CALL(*delimitation, delimit(_, false))
-		    .WillOnce(Return(
-		        nonstd::expected<std::vector<Bytes>, PipelineError>(std::vector<Bytes>{bytes})));
+		    .WillOnce(Return(success<PipelineError>(std::vector<Bytes>{bytes})));
 		EXPECT_CALL(*parsing, parse(_))
-		    .WillOnce(Return(nonstd::expected<Record, RecordError>(expected_record)));
+		    .WillOnce(Return(success<RecordError>(expected_record)));
 
 		Engine engine(std::move(acquisition_owned), std::move(delimitation_owned),
 		              std::move(parsing_owned), {}, ErrorPolicy::FailFast);
@@ -392,16 +400,14 @@ namespace cpe::test {
 
 		Bytes bytes = to_bytes("hi");
 
-		Record parsed_record;
-		parsed_record.set("raw", std::string{"hi"});
+		Record parsed_record = record_with({{"raw", std::string{"hi"}}});
 
 		EXPECT_CALL(*acquisition, read())
-		    .WillOnce(Return(nonstd::expected<Bytes, PipelineError>(bytes)));
+		    .WillOnce(Return(success<PipelineError>(bytes)));
 		EXPECT_CALL(*delimitation, delimit(_, false))
-		    .WillOnce(Return(
-		        nonstd::expected<std::vector<Bytes>, PipelineError>(std::vector<Bytes>{bytes})));
+		    .WillOnce(Return(success<PipelineError>(std::vector<Bytes>{bytes})));
 		EXPECT_CALL(*parsing, parse(_))
-		    .WillOnce(Return(nonstd::expected<Record, RecordError>(parsed_record)));
+		    .WillOnce(Return(success<RecordError>(parsed_record)));
 
 		// Transformation that adds a new field to the record.
 		std::vector<Processing> processing;
@@ -415,8 +421,7 @@ namespace cpe::test {
 
 		auto result = engine.next();
 
-		Record expected_record;
-		expected_record.set("raw", std::string{"hi"});
+		Record expected_record = record_with({{"raw", std::string{"hi"}}});
 		expected_record.set("added", std::string{"yes"});
 
 		ASSERT_TRUE(result.has_value());
@@ -439,19 +444,17 @@ namespace cpe::test {
 
 		Bytes bytes = to_bytes("drop\nkeep\n");
 
-		Record record_dropped;
-		record_dropped.set("raw", std::string{"drop"});
-		Record record_kept;
-		record_kept.set("raw", std::string{"keep"});
+		Record record_dropped = record_with({{"raw", std::string{"drop"}}});
+		Record record_kept = record_with({{"raw", std::string{"keep"}}});
 
 		EXPECT_CALL(*acquisition, read())
-		    .WillOnce(Return(nonstd::expected<Bytes, PipelineError>(bytes)));
+		    .WillOnce(Return(success<PipelineError>(bytes)));
 		EXPECT_CALL(*delimitation, delimit(_, false))
-		    .WillOnce(Return(nonstd::expected<std::vector<Bytes>, PipelineError>(
+		    .WillOnce(Return(success<PipelineError>(
 		        std::vector<Bytes>{to_bytes("drop"), to_bytes("keep")})));
 		EXPECT_CALL(*parsing, parse(_))
-		    .WillOnce(Return(nonstd::expected<Record, RecordError>(record_dropped)))
-		    .WillOnce(Return(nonstd::expected<Record, RecordError>(record_kept)));
+		    .WillOnce(Return(success<RecordError>(record_dropped)))
+		    .WillOnce(Return(success<RecordError>(record_kept)));
 
 		// Filter that drops the first record it sees, keeps the rest.
 		std::vector<Processing> processing;
@@ -489,16 +492,14 @@ namespace cpe::test {
 
 		Bytes bytes = to_bytes("hi");
 
-		Record parsed_record;
-		parsed_record.set("raw", std::string{"hi"});
+		Record parsed_record = record_with({{"raw", std::string{"hi"}}});
 
 		EXPECT_CALL(*acquisition, read())
-		    .WillOnce(Return(nonstd::expected<Bytes, PipelineError>(bytes)));
+		    .WillOnce(Return(success<PipelineError>(bytes)));
 		EXPECT_CALL(*delimitation, delimit(_, false))
-		    .WillOnce(Return(
-		        nonstd::expected<std::vector<Bytes>, PipelineError>(std::vector<Bytes>{bytes})));
+		    .WillOnce(Return(success<PipelineError>(std::vector<Bytes>{bytes})));
 		EXPECT_CALL(*parsing, parse(_))
-		    .WillOnce(Return(nonstd::expected<Record, RecordError>(parsed_record)));
+		    .WillOnce(Return(success<RecordError>(parsed_record)));
 
 		// Validation that always fails.
 		std::vector<Processing> processing;
@@ -527,19 +528,17 @@ namespace cpe::test {
 
 		Bytes bytes = to_bytes("bad\ngood\n");
 
-		Record record_invalid;
-		record_invalid.set("raw", std::string{"bad"});
-		Record record_valid;
-		record_valid.set("raw", std::string{"good"});
+		Record record_invalid = record_with({{"raw", std::string{"bad"}}});
+		Record record_valid = record_with({{"raw", std::string{"good"}}});
 
 		EXPECT_CALL(*acquisition, read())
-		    .WillOnce(Return(nonstd::expected<Bytes, PipelineError>(bytes)));
+		    .WillOnce(Return(success<PipelineError>(bytes)));
 		EXPECT_CALL(*delimitation, delimit(_, false))
-		    .WillOnce(Return(nonstd::expected<std::vector<Bytes>, PipelineError>(
+		    .WillOnce(Return(success<PipelineError>(
 		        std::vector<Bytes>{to_bytes("bad"), to_bytes("good")})));
 		EXPECT_CALL(*parsing, parse(_))
-		    .WillOnce(Return(nonstd::expected<Record, RecordError>(record_invalid)))
-		    .WillOnce(Return(nonstd::expected<Record, RecordError>(record_valid)));
+		    .WillOnce(Return(success<RecordError>(record_invalid)))
+		    .WillOnce(Return(success<RecordError>(record_valid)));
 
 		// Validation that rejects the first record it sees, accepts the rest.
 		std::vector<Processing> processing;
@@ -577,16 +576,14 @@ namespace cpe::test {
 
 		Bytes bytes = to_bytes("hi");
 
-		Record parsed_record;
-		parsed_record.set("raw", std::string{"hi"});
+		Record parsed_record = record_with({{"raw", std::string{"hi"}}});
 
 		EXPECT_CALL(*acquisition, read())
-		    .WillOnce(Return(nonstd::expected<Bytes, PipelineError>(bytes)));
+		    .WillOnce(Return(success<PipelineError>(bytes)));
 		EXPECT_CALL(*delimitation, delimit(_, false))
-		    .WillOnce(Return(
-		        nonstd::expected<std::vector<Bytes>, PipelineError>(std::vector<Bytes>{bytes})));
+		    .WillOnce(Return(success<PipelineError>(std::vector<Bytes>{bytes})));
 		EXPECT_CALL(*parsing, parse(_))
-		    .WillOnce(Return(nonstd::expected<Record, RecordError>(parsed_record)));
+		    .WillOnce(Return(success<RecordError>(parsed_record)));
 
 		std::vector<std::string> order_log;
 
