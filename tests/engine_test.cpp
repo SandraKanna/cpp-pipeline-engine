@@ -12,9 +12,9 @@
 #include <nonstd/expected.hpp> // nonstd::expected, nonstd::make_unexpected
 
 #include <initializer_list> // std::initializer_list
-#include <memory> // std::unique_ptr
-#include <system_error> // std::make_error_code, std::errc
-#include <utility>      // std::move std::pair
+#include <memory>           // std::unique_ptr
+#include <system_error>     // std::make_error_code, std::errc
+#include <utility>          // std::move std::pair
 
 #include <gtest/gtest.h>
 
@@ -23,6 +23,9 @@ using ::testing::Return;
 // NOLINTNEXTLINE(bugprone-reserved-identifier)
 using ::testing::_;
 
+// STUDY: unnamed namespace = symbols are only visible within this translation
+// unit. Modern replacement for file-level `static`: prevents name collisions
+// if another .cpp defines a symbol with the same name.
 namespace {
 	// Reads the string's characters as raw bytes, for comparing against file contents.
 	cpe::Bytes to_bytes(const std::string& s) {
@@ -35,19 +38,25 @@ namespace {
 
 	// Wraps a value as a successful expected. The error type is deduced from the
 	// call site (typically the return type expected by Return(...) in GMock).
-	template <typename E, typename T>
-	nonstd::expected<T, E> success(T value) {
+	// STUDY: template parameters have partial deduction. E must be given at the
+	// call site (success<PipelineError>(bytes)) because it does not appear in
+	// the argument. T is deduced from the argument's type.
+	template <typename E, typename T> nonstd::expected<T, E> success(T value) {
 		return nonstd::expected<T, E>(std::move(value));
 	}
 
 	// Wraps an error as a failed expected. The success type must be given
 	// explicitly since only the error is available.
-	template <typename T, typename E>
-	nonstd::expected<T, E> failure(E error) {
+	// STUDY: mirror of success. T (the success type) has to be explicit because
+	// only the error is passed in; E is deduced from the argument.
+	template <typename T, typename E> nonstd::expected<T, E> failure(E error) {
 		return nonstd::expected<T, E>(nonstd::make_unexpected(std::move(error)));
 	}
 
 	// Builds a Record from a list of (name, value) pairs, in the given order.
+	// STUDY: initializer_list lets the caller write record_with({{"name", value},
+	// {"other", value}}) with brace-enclosed pairs. The order of insertion is
+	// preserved (relevant per ADR-003).
 	cpe::Record record_with(std::initializer_list<std::pair<std::string, cpe::Value>> fields) {
 		cpe::Record record;
 		for (const auto& [name, value] : fields) {
@@ -58,32 +67,45 @@ namespace {
 } // namespace
 
 namespace cpe::test {
+	class EngineTest : public ::testing::Test {
+	protected:
+		// STUDY: the SetUp runs before each TEST_F, giving every test a fresh
+		// set of mocks. Tests use the raw pointers to program EXPECT_CALLs; the
+		// unique_ptrs stay alive until the test moves them into the engine.
+		void SetUp() override {
+			acquisition_owned = std::make_unique<MockBytesAcquisition>();
+			delimitation_owned = std::make_unique<MockRecordDelimitation>();
+			parsing_owned = std::make_unique<MockRecordParsing>();
+			acquisition = acquisition_owned.get();
+			delimitation = delimitation_owned.get();
+			parsing = parsing_owned.get();
+		}
+
+		// STUDY: the owned unique_ptrs will be moved into the engine at
+		// construction time; after that move, only the raw pointers remain
+		// usable for interacting with the mocks.
+		std::unique_ptr<MockBytesAcquisition> acquisition_owned;
+		std::unique_ptr<MockRecordDelimitation> delimitation_owned;
+		std::unique_ptr<MockRecordParsing> parsing_owned;
+		MockBytesAcquisition* acquisition = nullptr;
+		MockRecordDelimitation* delimitation = nullptr;
+		MockRecordParsing* parsing = nullptr;
+	};
+
 	// Happy path: one chunk from acquisition, one delimited record,
 	// one successful parse. next() returns the record.
-	TEST(EngineTest, ReturnsSingleRecordFromSingleChunk) {
-		// STUDY: create empty mocks that will be owned by the engine
-		auto acquisition_owned = std::make_unique<MockBytesAcquisition>();
-		auto delimitation_owned = std::make_unique<MockRecordDelimitation>();
-		auto parsing_owned = std::make_unique<MockRecordParsing>();
-
-		// STUDY: create another pointer to the mocked object, used for config
-		auto* acquisition = acquisition_owned.get();
-		auto* delimitation = delimitation_owned.get();
-		auto* parsing = parsing_owned.get();
-
+	TEST_F(EngineTest, ReturnsSingleRecordFromSingleChunk) {
 		Bytes bytes = to_bytes("hi");
 
 		Record expected_record = record_with({{"raw", std::string{"hi"}}});
 
-		// STUDY: program the engine, for it to know what each component's behavior should be
-		EXPECT_CALL(*acquisition, read())
-		    .WillOnce(Return(success<PipelineError>(bytes)));
-
+		// STUDY: acquisition, delimitation, parsing come from the fixture's SetUp;
+		// they are raw pointers to the mocks the engine will own after construction.
+		// Program each mock's behavior for this scenario
+		EXPECT_CALL(*acquisition, read()).WillOnce(Return(success<PipelineError>(bytes)));
 		EXPECT_CALL(*delimitation, delimit(_, false))
 		    .WillOnce(Return(success<PipelineError>(std::vector<Bytes>{bytes})));
-
-		EXPECT_CALL(*parsing, parse(_))
-		    .WillOnce(Return(success<RecordError>(expected_record)));
+		EXPECT_CALL(*parsing, parse(_)).WillOnce(Return(success<RecordError>(expected_record)));
 
 		// STUDY: build the engine, giving it ownership of the components
 		Engine engine(std::move(acquisition_owned), std::move(delimitation_owned),
@@ -101,27 +123,18 @@ namespace cpe::test {
 
 	// Happy path: multiple records per chunk. Acquisition returns one chunk that delimit()
 	// will split. next() returns the one by one, in consecutive order.
-	TEST(EngineTest, ReturnsMultipleRecordsFromSingleChunk) {
-		auto acquisition_owned = std::make_unique<MockBytesAcquisition>();
-		auto delimitation_owned = std::make_unique<MockRecordDelimitation>();
-		auto parsing_owned = std::make_unique<MockRecordParsing>();
-
-		auto* acquisition = acquisition_owned.get();
-		auto* delimitation = delimitation_owned.get();
-		auto* parsing = parsing_owned.get();
-
+	TEST_F(EngineTest, ReturnsMultipleRecordsFromSingleChunk) {
 		Bytes bytes = to_bytes("record one\nrecord two\nrecord three");
 
 		Record expected_record_1 = record_with({{"raw", std::string{"record one"}}});
 		Record expected_record_2 = record_with({{"raw", std::string{"record two"}}});
 		Record expected_record_3 = record_with({{"raw", std::string{"record three"}}});
 
-		EXPECT_CALL(*acquisition, read())
-		    .WillOnce(Return(success<PipelineError>(bytes)));
+		EXPECT_CALL(*acquisition, read()).WillOnce(Return(success<PipelineError>(bytes)));
 
 		EXPECT_CALL(*delimitation, delimit(_, false))
 		    .WillOnce(Return(success<PipelineError>(std::vector<Bytes>{
-    			to_bytes("record one"), to_bytes("record two"), to_bytes("record three")})));
+		        to_bytes("record one"), to_bytes("record two"), to_bytes("record three")})));
 
 		EXPECT_CALL(*parsing, parse(_))
 		    .WillOnce(Return(success<RecordError>(expected_record_1)))
@@ -156,15 +169,7 @@ namespace cpe::test {
 
 	// Normal EOS. Acquisition returns empty chunk. The engine calls delimit()
 	// one last time with is_final=true. When the queue is empty, next() returns nullopt.
-	TEST(EngineTest, ReturnsNulloptAtEndOfStream) {
-		auto acquisition_owned = std::make_unique<MockBytesAcquisition>();
-		auto delimitation_owned = std::make_unique<MockRecordDelimitation>();
-		auto parsing_owned = std::make_unique<MockRecordParsing>();
-
-		auto* acquisition = acquisition_owned.get();
-		auto* delimitation = delimitation_owned.get();
-		auto* parsing = parsing_owned.get();
-
+	TEST_F(EngineTest, ReturnsNulloptAtEndOfStream) {
 		Bytes bytes = to_bytes("record one\n");
 
 		Record expected_record_1 = record_with({{"raw", std::string{"record one"}}});
@@ -174,13 +179,11 @@ namespace cpe::test {
 		    .WillOnce(Return(success<PipelineError>(Bytes{})));
 
 		EXPECT_CALL(*delimitation, delimit(_, false))
-		    .WillOnce(Return(success<PipelineError>(
-		        std::vector<Bytes>{to_bytes("record one")})));
+		    .WillOnce(Return(success<PipelineError>(std::vector<Bytes>{to_bytes("record one")})));
 		EXPECT_CALL(*delimitation, delimit(_, true))
 		    .WillOnce(Return(success<PipelineError>(std::vector<Bytes>{})));
 
-		EXPECT_CALL(*parsing, parse(_))
-		    .WillOnce(Return(success<RecordError>(expected_record_1)));
+		EXPECT_CALL(*parsing, parse(_)).WillOnce(Return(success<RecordError>(expected_record_1)));
 
 		Engine engine(std::move(acquisition_owned), std::move(delimitation_owned),
 		              std::move(parsing_owned), {}, ErrorPolicy::FailFast);
@@ -199,18 +202,11 @@ namespace cpe::test {
 	}
 
 	// Acquisition returns PipelineError. next() propagates it as-is.
-	TEST(EngineTest, PropagatesPipelineErrorFromAcquisition) {
-		auto acquisition_owned = std::make_unique<MockBytesAcquisition>();
-		auto delimitation_owned = std::make_unique<MockRecordDelimitation>();
-		auto parsing_owned = std::make_unique<MockRecordParsing>();
-
-		auto* acquisition = acquisition_owned.get();
-
+	TEST_F(EngineTest, PropagatesPipelineErrorFromAcquisition) {
 		PipelineError error{.code = std::make_error_code(std::errc::io_error),
 		                    .message = "acquisition failed"};
 
-		EXPECT_CALL(*acquisition, read())
-		    .WillOnce(Return(failure<Bytes>(error)));
+		EXPECT_CALL(*acquisition, read()).WillOnce(Return(failure<Bytes>(error)));
 
 		Engine engine(std::move(acquisition_owned), std::move(delimitation_owned),
 		              std::move(parsing_owned), {}, ErrorPolicy::FailFast);
@@ -223,21 +219,13 @@ namespace cpe::test {
 	}
 
 	// Delimitation returns PipelineError. next() propagates it as-is.
-	TEST(EngineTest, PropagatesPipelineErrorFromDelimitation) {
-		auto acquisition_owned = std::make_unique<MockBytesAcquisition>();
-		auto delimitation_owned = std::make_unique<MockRecordDelimitation>();
-		auto parsing_owned = std::make_unique<MockRecordParsing>();
-
-		auto* acquisition = acquisition_owned.get();
-		auto* delimitation = delimitation_owned.get();
-
+	TEST_F(EngineTest, PropagatesPipelineErrorFromDelimitation) {
 		Bytes bytes = to_bytes("record one\n");
 
 		PipelineError error{.code = std::make_error_code(std::errc::io_error),
 		                    .message = "delimitation failed"};
 
-		EXPECT_CALL(*acquisition, read())
-		    .WillOnce(Return(success<PipelineError>(bytes)));
+		EXPECT_CALL(*acquisition, read()).WillOnce(Return(success<PipelineError>(bytes)));
 
 		EXPECT_CALL(*delimitation, delimit(_, false))
 		    .WillOnce(Return(failure<std::vector<Bytes>>(error)));
@@ -254,26 +242,15 @@ namespace cpe::test {
 
 	// Parse fails under FailFast. next() promotes the RecordError to a
 	// PipelineError (ADR-013).
-	TEST(EngineTest, PromotesRecordErrorUnderFailFast) {
-		auto acquisition_owned = std::make_unique<MockBytesAcquisition>();
-		auto delimitation_owned = std::make_unique<MockRecordDelimitation>();
-		auto parsing_owned = std::make_unique<MockRecordParsing>();
-
-		auto* acquisition = acquisition_owned.get();
-		auto* delimitation = delimitation_owned.get();
-		auto* parsing = parsing_owned.get();
-
+	TEST_F(EngineTest, PromotesRecordErrorUnderFailFast) {
 		Bytes bytes = to_bytes("record one\n");
 
-		EXPECT_CALL(*acquisition, read())
-		    .WillOnce(Return(success<PipelineError>(bytes)));
+		EXPECT_CALL(*acquisition, read()).WillOnce(Return(success<PipelineError>(bytes)));
 
 		EXPECT_CALL(*delimitation, delimit(_, false))
-		    .WillOnce(Return(success<PipelineError>(
-		        std::vector<Bytes>{to_bytes("record one")})));
+		    .WillOnce(Return(success<PipelineError>(std::vector<Bytes>{to_bytes("record one")})));
 
-		EXPECT_CALL(*parsing, parse(_))
-		    .WillOnce(Return(failure<Record>(RecordError{})));
+		EXPECT_CALL(*parsing, parse(_)).WillOnce(Return(failure<Record>(RecordError{})));
 
 		Engine engine(std::move(acquisition_owned), std::move(delimitation_owned),
 		              std::move(parsing_owned), {}, ErrorPolicy::FailFast);
@@ -287,25 +264,16 @@ namespace cpe::test {
 
 	// Parse fails on the first record under Skip. next() discards it and
 	// returns the second (ADR-013).
-	TEST(EngineTest, SkipsFailingRecord) {
-		auto acquisition_owned = std::make_unique<MockBytesAcquisition>();
-		auto delimitation_owned = std::make_unique<MockRecordDelimitation>();
-		auto parsing_owned = std::make_unique<MockRecordParsing>();
-
-		auto* acquisition = acquisition_owned.get();
-		auto* delimitation = delimitation_owned.get();
-		auto* parsing = parsing_owned.get();
-
+	TEST_F(EngineTest, SkipsFailingRecord) {
 		Bytes bytes = to_bytes("bad\ngood\n");
 
 		Record expected_record_2 = record_with({{"raw", std::string{"good"}}});
 
-		EXPECT_CALL(*acquisition, read())
-		    .WillOnce(Return(success<PipelineError>(bytes)));
+		EXPECT_CALL(*acquisition, read()).WillOnce(Return(success<PipelineError>(bytes)));
 
 		EXPECT_CALL(*delimitation, delimit(_, false))
-		    .WillOnce(Return(success<PipelineError>(
-		        std::vector<Bytes>{to_bytes("bad"), to_bytes("good")})));
+		    .WillOnce(Return(
+		        success<PipelineError>(std::vector<Bytes>{to_bytes("bad"), to_bytes("good")})));
 
 		EXPECT_CALL(*parsing, parse(_))
 		    .WillOnce(Return(failure<Record>(RecordError{})))
@@ -325,16 +293,8 @@ namespace cpe::test {
 
 	// After the first nullopt, further next() calls stay nullopt without
 	// calling read() again (acquisition_exhausted_ guards the loop).
-	TEST(EngineTest, NulloptIsStableAfterEndOfStream) {
-		auto acquisition_owned = std::make_unique<MockBytesAcquisition>();
-		auto delimitation_owned = std::make_unique<MockRecordDelimitation>();
-		auto parsing_owned = std::make_unique<MockRecordParsing>();
-
-		auto* acquisition = acquisition_owned.get();
-		auto* delimitation = delimitation_owned.get();
-
-		EXPECT_CALL(*acquisition, read())
-		    .WillOnce(Return(success<PipelineError>(Bytes{})));
+	TEST_F(EngineTest, NulloptIsStableAfterEndOfStream) {
+		EXPECT_CALL(*acquisition, read()).WillOnce(Return(success<PipelineError>(Bytes{})));
 
 		EXPECT_CALL(*delimitation, delimit(_, true))
 		    .WillOnce(Return(success<PipelineError>(std::vector<Bytes>{})));
@@ -355,25 +315,15 @@ namespace cpe::test {
 	// A record passes through an empty processing chain unchanged.
 	// Documents that processing is optional; the empty vector default in the
 	// constructor is a legitimate configuration.
-	TEST(EngineTest, EmptyProcessingChainReturnsRecordUnchanged) {
-		auto acquisition_owned = std::make_unique<MockBytesAcquisition>();
-		auto delimitation_owned = std::make_unique<MockRecordDelimitation>();
-		auto parsing_owned = std::make_unique<MockRecordParsing>();
-
-		auto* acquisition = acquisition_owned.get();
-		auto* delimitation = delimitation_owned.get();
-		auto* parsing = parsing_owned.get();
-
+	TEST_F(EngineTest, EmptyProcessingChainReturnsRecordUnchanged) {
 		Bytes bytes = to_bytes("hi");
 
 		Record expected_record = record_with({{"raw", std::string{"hi"}}});
 
-		EXPECT_CALL(*acquisition, read())
-		    .WillOnce(Return(success<PipelineError>(bytes)));
+		EXPECT_CALL(*acquisition, read()).WillOnce(Return(success<PipelineError>(bytes)));
 		EXPECT_CALL(*delimitation, delimit(_, false))
 		    .WillOnce(Return(success<PipelineError>(std::vector<Bytes>{bytes})));
-		EXPECT_CALL(*parsing, parse(_))
-		    .WillOnce(Return(success<RecordError>(expected_record)));
+		EXPECT_CALL(*parsing, parse(_)).WillOnce(Return(success<RecordError>(expected_record)));
 
 		Engine engine(std::move(acquisition_owned), std::move(delimitation_owned),
 		              std::move(parsing_owned), {}, ErrorPolicy::FailFast);
@@ -389,25 +339,15 @@ namespace cpe::test {
 
 	// A transformation replaces the record with its result. The record that
 	// leaves the engine carries the modification.
-	TEST(EngineTest, TransformationModifiesRecord) {
-		auto acquisition_owned = std::make_unique<MockBytesAcquisition>();
-		auto delimitation_owned = std::make_unique<MockRecordDelimitation>();
-		auto parsing_owned = std::make_unique<MockRecordParsing>();
-
-		auto* acquisition = acquisition_owned.get();
-		auto* delimitation = delimitation_owned.get();
-		auto* parsing = parsing_owned.get();
-
+	TEST_F(EngineTest, TransformationModifiesRecord) {
 		Bytes bytes = to_bytes("hi");
 
 		Record parsed_record = record_with({{"raw", std::string{"hi"}}});
 
-		EXPECT_CALL(*acquisition, read())
-		    .WillOnce(Return(success<PipelineError>(bytes)));
+		EXPECT_CALL(*acquisition, read()).WillOnce(Return(success<PipelineError>(bytes)));
 		EXPECT_CALL(*delimitation, delimit(_, false))
 		    .WillOnce(Return(success<PipelineError>(std::vector<Bytes>{bytes})));
-		EXPECT_CALL(*parsing, parse(_))
-		    .WillOnce(Return(success<RecordError>(parsed_record)));
+		EXPECT_CALL(*parsing, parse(_)).WillOnce(Return(success<RecordError>(parsed_record)));
 
 		// Transformation that adds a new field to the record.
 		std::vector<Processing> processing;
@@ -433,25 +373,16 @@ namespace cpe::test {
 
 	// A filter that returns false drops the record silently (no error). next()
 	// discards it and returns the next one.
-	TEST(EngineTest, FilterDropsRecordSilently) {
-		auto acquisition_owned = std::make_unique<MockBytesAcquisition>();
-		auto delimitation_owned = std::make_unique<MockRecordDelimitation>();
-		auto parsing_owned = std::make_unique<MockRecordParsing>();
-
-		auto* acquisition = acquisition_owned.get();
-		auto* delimitation = delimitation_owned.get();
-		auto* parsing = parsing_owned.get();
-
+	TEST_F(EngineTest, FilterDropsRecordSilently) {
 		Bytes bytes = to_bytes("drop\nkeep\n");
 
 		Record record_dropped = record_with({{"raw", std::string{"drop"}}});
 		Record record_kept = record_with({{"raw", std::string{"keep"}}});
 
-		EXPECT_CALL(*acquisition, read())
-		    .WillOnce(Return(success<PipelineError>(bytes)));
+		EXPECT_CALL(*acquisition, read()).WillOnce(Return(success<PipelineError>(bytes)));
 		EXPECT_CALL(*delimitation, delimit(_, false))
-		    .WillOnce(Return(success<PipelineError>(
-		        std::vector<Bytes>{to_bytes("drop"), to_bytes("keep")})));
+		    .WillOnce(Return(
+		        success<PipelineError>(std::vector<Bytes>{to_bytes("drop"), to_bytes("keep")})));
 		EXPECT_CALL(*parsing, parse(_))
 		    .WillOnce(Return(success<RecordError>(record_dropped)))
 		    .WillOnce(Return(success<RecordError>(record_kept)));
@@ -481,25 +412,15 @@ namespace cpe::test {
 	// A validation that returns false is a record error. Under FailFast it is
 	// promoted to a PipelineError, the same treatment as a parsing failure
 	// (ADR-013).
-	TEST(EngineTest, ValidationFailureUnderFailFastPromotesToPipelineError) {
-		auto acquisition_owned = std::make_unique<MockBytesAcquisition>();
-		auto delimitation_owned = std::make_unique<MockRecordDelimitation>();
-		auto parsing_owned = std::make_unique<MockRecordParsing>();
-
-		auto* acquisition = acquisition_owned.get();
-		auto* delimitation = delimitation_owned.get();
-		auto* parsing = parsing_owned.get();
-
+	TEST_F(EngineTest, ValidationFailureUnderFailFastPromotesToPipelineError) {
 		Bytes bytes = to_bytes("hi");
 
 		Record parsed_record = record_with({{"raw", std::string{"hi"}}});
 
-		EXPECT_CALL(*acquisition, read())
-		    .WillOnce(Return(success<PipelineError>(bytes)));
+		EXPECT_CALL(*acquisition, read()).WillOnce(Return(success<PipelineError>(bytes)));
 		EXPECT_CALL(*delimitation, delimit(_, false))
 		    .WillOnce(Return(success<PipelineError>(std::vector<Bytes>{bytes})));
-		EXPECT_CALL(*parsing, parse(_))
-		    .WillOnce(Return(success<RecordError>(parsed_record)));
+		EXPECT_CALL(*parsing, parse(_)).WillOnce(Return(success<RecordError>(parsed_record)));
 
 		// Validation that always fails.
 		std::vector<Processing> processing;
@@ -517,25 +438,16 @@ namespace cpe::test {
 
 	// A validation that returns false under Skip drops the record and next()
 	// returns the following one (ADR-013).
-	TEST(EngineTest, ValidationFailureUnderSkipDropsRecord) {
-		auto acquisition_owned = std::make_unique<MockBytesAcquisition>();
-		auto delimitation_owned = std::make_unique<MockRecordDelimitation>();
-		auto parsing_owned = std::make_unique<MockRecordParsing>();
-
-		auto* acquisition = acquisition_owned.get();
-		auto* delimitation = delimitation_owned.get();
-		auto* parsing = parsing_owned.get();
-
+	TEST_F(EngineTest, ValidationFailureUnderSkipDropsRecord) {
 		Bytes bytes = to_bytes("bad\ngood\n");
 
 		Record record_invalid = record_with({{"raw", std::string{"bad"}}});
 		Record record_valid = record_with({{"raw", std::string{"good"}}});
 
-		EXPECT_CALL(*acquisition, read())
-		    .WillOnce(Return(success<PipelineError>(bytes)));
+		EXPECT_CALL(*acquisition, read()).WillOnce(Return(success<PipelineError>(bytes)));
 		EXPECT_CALL(*delimitation, delimit(_, false))
-		    .WillOnce(Return(success<PipelineError>(
-		        std::vector<Bytes>{to_bytes("bad"), to_bytes("good")})));
+		    .WillOnce(Return(
+		        success<PipelineError>(std::vector<Bytes>{to_bytes("bad"), to_bytes("good")})));
 		EXPECT_CALL(*parsing, parse(_))
 		    .WillOnce(Return(success<RecordError>(record_invalid)))
 		    .WillOnce(Return(success<RecordError>(record_valid)));
@@ -565,25 +477,15 @@ namespace cpe::test {
 	// Processing steps run in the order they appear in the vector. A shared
 	// log captures each step as it fires; the log's order reveals whether the
 	// engine walked the vector front-to-back.
-	TEST(EngineTest, ProcessingStepsAppliedInOrder) {
-		auto acquisition_owned = std::make_unique<MockBytesAcquisition>();
-		auto delimitation_owned = std::make_unique<MockRecordDelimitation>();
-		auto parsing_owned = std::make_unique<MockRecordParsing>();
-
-		auto* acquisition = acquisition_owned.get();
-		auto* delimitation = delimitation_owned.get();
-		auto* parsing = parsing_owned.get();
-
+	TEST_F(EngineTest, ProcessingStepsAppliedInOrder) {
 		Bytes bytes = to_bytes("hi");
 
 		Record parsed_record = record_with({{"raw", std::string{"hi"}}});
 
-		EXPECT_CALL(*acquisition, read())
-		    .WillOnce(Return(success<PipelineError>(bytes)));
+		EXPECT_CALL(*acquisition, read()).WillOnce(Return(success<PipelineError>(bytes)));
 		EXPECT_CALL(*delimitation, delimit(_, false))
 		    .WillOnce(Return(success<PipelineError>(std::vector<Bytes>{bytes})));
-		EXPECT_CALL(*parsing, parse(_))
-		    .WillOnce(Return(success<RecordError>(parsed_record)));
+		EXPECT_CALL(*parsing, parse(_)).WillOnce(Return(success<RecordError>(parsed_record)));
 
 		std::vector<std::string> order_log;
 
