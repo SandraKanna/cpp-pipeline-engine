@@ -342,4 +342,276 @@ namespace cpe::test {
 		EXPECT_FALSE(result_2.value().has_value());
 	}
 
+	// A record passes through an empty processing chain unchanged.
+	// Documents that processing is optional; the empty vector default in the
+	// constructor is a legitimate configuration.
+	TEST(EngineTest, EmptyProcessingChainReturnsRecordUnchanged) {
+		auto acquisition_owned = std::make_unique<MockBytesAcquisition>();
+		auto delimitation_owned = std::make_unique<MockRecordDelimitation>();
+		auto parsing_owned = std::make_unique<MockRecordParsing>();
+
+		auto* acquisition = acquisition_owned.get();
+		auto* delimitation = delimitation_owned.get();
+		auto* parsing = parsing_owned.get();
+
+		Bytes bytes = to_bytes("hi");
+
+		Record expected_record;
+		expected_record.set("raw", std::string{"hi"});
+
+		EXPECT_CALL(*acquisition, read())
+		    .WillOnce(Return(nonstd::expected<Bytes, PipelineError>(bytes)));
+		EXPECT_CALL(*delimitation, delimit(_, false))
+		    .WillOnce(Return(
+		        nonstd::expected<std::vector<Bytes>, PipelineError>(std::vector<Bytes>{bytes})));
+		EXPECT_CALL(*parsing, parse(_))
+		    .WillOnce(Return(nonstd::expected<Record, RecordError>(expected_record)));
+
+		Engine engine(std::move(acquisition_owned), std::move(delimitation_owned),
+		              std::move(parsing_owned), {}, ErrorPolicy::FailFast);
+
+		auto result = engine.next();
+
+		ASSERT_TRUE(result.has_value());
+		ASSERT_TRUE(result.value().has_value());
+		// NOLINTNEXTLINE(bugprone-unchecked-optional-access): guarded by ASSERT_TRUE above
+		const auto& record = *result.value();
+		EXPECT_EQ(record, expected_record);
+	}
+
+	// A transformation replaces the record with its result. The record that
+	// leaves the engine carries the modification.
+	TEST(EngineTest, TransformationModifiesRecord) {
+		auto acquisition_owned = std::make_unique<MockBytesAcquisition>();
+		auto delimitation_owned = std::make_unique<MockRecordDelimitation>();
+		auto parsing_owned = std::make_unique<MockRecordParsing>();
+
+		auto* acquisition = acquisition_owned.get();
+		auto* delimitation = delimitation_owned.get();
+		auto* parsing = parsing_owned.get();
+
+		Bytes bytes = to_bytes("hi");
+
+		Record parsed_record;
+		parsed_record.set("raw", std::string{"hi"});
+
+		EXPECT_CALL(*acquisition, read())
+		    .WillOnce(Return(nonstd::expected<Bytes, PipelineError>(bytes)));
+		EXPECT_CALL(*delimitation, delimit(_, false))
+		    .WillOnce(Return(
+		        nonstd::expected<std::vector<Bytes>, PipelineError>(std::vector<Bytes>{bytes})));
+		EXPECT_CALL(*parsing, parse(_))
+		    .WillOnce(Return(nonstd::expected<Record, RecordError>(parsed_record)));
+
+		// Transformation that adds a new field to the record.
+		std::vector<Processing> processing;
+		processing.emplace_back(RecordTransformation{[](Record r) {
+			r.set("added", std::string{"yes"});
+			return r;
+		}});
+
+		Engine engine(std::move(acquisition_owned), std::move(delimitation_owned),
+		              std::move(parsing_owned), std::move(processing), ErrorPolicy::FailFast);
+
+		auto result = engine.next();
+
+		Record expected_record;
+		expected_record.set("raw", std::string{"hi"});
+		expected_record.set("added", std::string{"yes"});
+
+		ASSERT_TRUE(result.has_value());
+		ASSERT_TRUE(result.value().has_value());
+		// NOLINTNEXTLINE(bugprone-unchecked-optional-access): guarded by ASSERT_TRUE above
+		const auto& record = *result.value();
+		EXPECT_EQ(record, expected_record);
+	}
+
+	// A filter that returns false drops the record silently (no error). next()
+	// discards it and returns the next one.
+	TEST(EngineTest, FilterDropsRecordSilently) {
+		auto acquisition_owned = std::make_unique<MockBytesAcquisition>();
+		auto delimitation_owned = std::make_unique<MockRecordDelimitation>();
+		auto parsing_owned = std::make_unique<MockRecordParsing>();
+
+		auto* acquisition = acquisition_owned.get();
+		auto* delimitation = delimitation_owned.get();
+		auto* parsing = parsing_owned.get();
+
+		Bytes bytes = to_bytes("drop\nkeep\n");
+
+		Record record_dropped;
+		record_dropped.set("raw", std::string{"drop"});
+		Record record_kept;
+		record_kept.set("raw", std::string{"keep"});
+
+		EXPECT_CALL(*acquisition, read())
+		    .WillOnce(Return(nonstd::expected<Bytes, PipelineError>(bytes)));
+		EXPECT_CALL(*delimitation, delimit(_, false))
+		    .WillOnce(Return(nonstd::expected<std::vector<Bytes>, PipelineError>(
+		        std::vector<Bytes>{to_bytes("drop"), to_bytes("keep")})));
+		EXPECT_CALL(*parsing, parse(_))
+		    .WillOnce(Return(nonstd::expected<Record, RecordError>(record_dropped)))
+		    .WillOnce(Return(nonstd::expected<Record, RecordError>(record_kept)));
+
+		// Filter that drops the first record it sees, keeps the rest.
+		std::vector<Processing> processing;
+		processing.emplace_back(RecordFiltering{[first = true](const Record&) mutable {
+			if (first) {
+				first = false;
+				return false;
+			}
+			return true;
+		}});
+
+		Engine engine(std::move(acquisition_owned), std::move(delimitation_owned),
+		              std::move(parsing_owned), std::move(processing), ErrorPolicy::FailFast);
+
+		auto result = engine.next();
+
+		ASSERT_TRUE(result.has_value());
+		ASSERT_TRUE(result.value().has_value());
+		// NOLINTNEXTLINE(bugprone-unchecked-optional-access): guarded by ASSERT_TRUE above
+		const auto& record = *result.value();
+		EXPECT_EQ(record, record_kept);
+	}
+
+	// A validation that returns false is a record error. Under FailFast it is
+	// promoted to a PipelineError, the same treatment as a parsing failure
+	// (ADR-013).
+	TEST(EngineTest, ValidationFailureUnderFailFastPromotesToPipelineError) {
+		auto acquisition_owned = std::make_unique<MockBytesAcquisition>();
+		auto delimitation_owned = std::make_unique<MockRecordDelimitation>();
+		auto parsing_owned = std::make_unique<MockRecordParsing>();
+
+		auto* acquisition = acquisition_owned.get();
+		auto* delimitation = delimitation_owned.get();
+		auto* parsing = parsing_owned.get();
+
+		Bytes bytes = to_bytes("hi");
+
+		Record parsed_record;
+		parsed_record.set("raw", std::string{"hi"});
+
+		EXPECT_CALL(*acquisition, read())
+		    .WillOnce(Return(nonstd::expected<Bytes, PipelineError>(bytes)));
+		EXPECT_CALL(*delimitation, delimit(_, false))
+		    .WillOnce(Return(
+		        nonstd::expected<std::vector<Bytes>, PipelineError>(std::vector<Bytes>{bytes})));
+		EXPECT_CALL(*parsing, parse(_))
+		    .WillOnce(Return(nonstd::expected<Record, RecordError>(parsed_record)));
+
+		// Validation that always fails.
+		std::vector<Processing> processing;
+		processing.emplace_back(RecordValidation{[](const Record&) { return false; }});
+
+		Engine engine(std::move(acquisition_owned), std::move(delimitation_owned),
+		              std::move(parsing_owned), std::move(processing), ErrorPolicy::FailFast);
+
+		auto result = engine.next();
+
+		ASSERT_FALSE(result.has_value());
+		EXPECT_EQ(result.error().code, std::make_error_code(std::errc::protocol_error));
+		EXPECT_EQ(result.error().message, "record validation failed");
+	}
+
+	// A validation that returns false under Skip drops the record and next()
+	// returns the following one (ADR-013).
+	TEST(EngineTest, ValidationFailureUnderSkipDropsRecord) {
+		auto acquisition_owned = std::make_unique<MockBytesAcquisition>();
+		auto delimitation_owned = std::make_unique<MockRecordDelimitation>();
+		auto parsing_owned = std::make_unique<MockRecordParsing>();
+
+		auto* acquisition = acquisition_owned.get();
+		auto* delimitation = delimitation_owned.get();
+		auto* parsing = parsing_owned.get();
+
+		Bytes bytes = to_bytes("bad\ngood\n");
+
+		Record record_invalid;
+		record_invalid.set("raw", std::string{"bad"});
+		Record record_valid;
+		record_valid.set("raw", std::string{"good"});
+
+		EXPECT_CALL(*acquisition, read())
+		    .WillOnce(Return(nonstd::expected<Bytes, PipelineError>(bytes)));
+		EXPECT_CALL(*delimitation, delimit(_, false))
+		    .WillOnce(Return(nonstd::expected<std::vector<Bytes>, PipelineError>(
+		        std::vector<Bytes>{to_bytes("bad"), to_bytes("good")})));
+		EXPECT_CALL(*parsing, parse(_))
+		    .WillOnce(Return(nonstd::expected<Record, RecordError>(record_invalid)))
+		    .WillOnce(Return(nonstd::expected<Record, RecordError>(record_valid)));
+
+		// Validation that rejects the first record it sees, accepts the rest.
+		std::vector<Processing> processing;
+		processing.emplace_back(RecordValidation{[first = true](const Record&) mutable {
+			if (first) {
+				first = false;
+				return false;
+			}
+			return true;
+		}});
+
+		Engine engine(std::move(acquisition_owned), std::move(delimitation_owned),
+		              std::move(parsing_owned), std::move(processing), ErrorPolicy::Skip);
+
+		auto result = engine.next();
+
+		ASSERT_TRUE(result.has_value());
+		ASSERT_TRUE(result.value().has_value());
+		// NOLINTNEXTLINE(bugprone-unchecked-optional-access): guarded by ASSERT_TRUE above
+		const auto& record = *result.value();
+		EXPECT_EQ(record, record_valid);
+	}
+
+	// Processing steps run in the order they appear in the vector. A shared
+	// log captures each step as it fires; the log's order reveals whether the
+	// engine walked the vector front-to-back.
+	TEST(EngineTest, ProcessingStepsAppliedInOrder) {
+		auto acquisition_owned = std::make_unique<MockBytesAcquisition>();
+		auto delimitation_owned = std::make_unique<MockRecordDelimitation>();
+		auto parsing_owned = std::make_unique<MockRecordParsing>();
+
+		auto* acquisition = acquisition_owned.get();
+		auto* delimitation = delimitation_owned.get();
+		auto* parsing = parsing_owned.get();
+
+		Bytes bytes = to_bytes("hi");
+
+		Record parsed_record;
+		parsed_record.set("raw", std::string{"hi"});
+
+		EXPECT_CALL(*acquisition, read())
+		    .WillOnce(Return(nonstd::expected<Bytes, PipelineError>(bytes)));
+		EXPECT_CALL(*delimitation, delimit(_, false))
+		    .WillOnce(Return(
+		        nonstd::expected<std::vector<Bytes>, PipelineError>(std::vector<Bytes>{bytes})));
+		EXPECT_CALL(*parsing, parse(_))
+		    .WillOnce(Return(nonstd::expected<Record, RecordError>(parsed_record)));
+
+		std::vector<std::string> order_log;
+
+		std::vector<Processing> processing;
+		processing.emplace_back(RecordTransformation{[&order_log](Record r) {
+			order_log.emplace_back("transform");
+			return r;
+		}});
+		processing.emplace_back(RecordFiltering{[&order_log](const Record&) {
+			order_log.emplace_back("filter");
+			return true;
+		}});
+		processing.emplace_back(RecordValidation{[&order_log](const Record&) {
+			order_log.emplace_back("validate");
+			return true;
+		}});
+
+		Engine engine(std::move(acquisition_owned), std::move(delimitation_owned),
+		              std::move(parsing_owned), std::move(processing), ErrorPolicy::FailFast);
+
+		auto result = engine.next();
+
+		ASSERT_TRUE(result.has_value());
+		ASSERT_TRUE(result.value().has_value());
+		EXPECT_EQ(order_log, (std::vector<std::string>{"transform", "filter", "validate"}));
+	}
+
 } // namespace cpe::test
