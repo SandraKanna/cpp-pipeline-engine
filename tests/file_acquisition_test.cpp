@@ -1,7 +1,6 @@
 #include <cpe/acquisition/file_acquisition.hpp>
 #include <cpe/bytes.hpp>
 
-#include <cstddef>
 #include <filesystem>
 #include <fstream>
 #include <string>
@@ -11,17 +10,6 @@
 #include <gtest/gtest.h>
 
 namespace cpe {
-	namespace {
-		// Reads the string's characters as raw bytes, for comparing against file contents.
-		Bytes to_bytes(const std::string& s) {
-			Bytes bytes(s.size());
-			for (std::size_t i = 0; i < s.size(); ++i) {
-				bytes[i] = static_cast<std::byte>(s[i]);
-			}
-			return bytes;
-		}
-	} // namespace
-
 	// A missing file is reported as a PipelineError carrying no_such_file_or_directory,
 	// not by throwing: the failure travels on the expected channel (ADR-009).
 	TEST(FileAcquisitionTest, MissingFileReturnsError) {

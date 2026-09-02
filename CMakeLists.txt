@@ -10,6 +10,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 # create the library cpe_core with specific specs to respect: C++20
 # Anything that needs the core types or components links against this
 add_library(cpe_core
+    src/bytes.cpp
     src/data_model.cpp
     src/acquisition/buffer_acquisition.cpp
     src/acquisition/file_acquisition.cpp

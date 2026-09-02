@@ -43,7 +43,7 @@ format-check:
 	clang-format --dry-run --Werror $(FORMAT_SRC)
 
 CLANG_TIDY = /opt/homebrew/opt/llvm/bin/clang-tidy
-TIDY_SRC = src/data_model.cpp src/acquisition/buffer_acquisition.cpp src/acquisition/file_acquisition.cpp \
+TIDY_SRC = src/bytes.cpp src/data_model.cpp src/acquisition/buffer_acquisition.cpp src/acquisition/file_acquisition.cpp \
 		   src/deserialization/line_delimitation.cpp src/deserialization/raw_parsing.cpp src/processing/processing.cpp \
 		   src/serialization/raw_serialization.cpp src/engine.cpp \
 		   tests/data_model_test.cpp tests/buffer_acquisition_test.cpp tests/file_acquisition_test.cpp \

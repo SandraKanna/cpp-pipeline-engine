@@ -5,22 +5,9 @@
 
 #include <gtest/gtest.h>
 
-#include <cstddef> // std::byte, std::size_t
-#include <string>  // std::string
+#include <string> // std::string
 
 namespace cpe {
-	namespace {
-		// Reads the string's characters as raw bytes, for comparing against serialized output.
-		// Duplicated across test files; extraction to bytes.hpp deferred to refactor session.
-		Bytes to_bytes(const std::string& s) {
-			Bytes bytes(s.size());
-			for (std::size_t i = 0; i < s.size(); ++i) {
-				bytes[i] = static_cast<std::byte>(s[i]);
-			}
-			return bytes;
-		}
-	} // namespace
-
 	// A Record shaped exactly {"raw": <string>} is the only input the strict contract
 	// accepts. The output is the byte representation of that string.
 	TEST(RawSerializationTest, EmitsBytesOfRawStringField) {

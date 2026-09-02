@@ -1,23 +1,11 @@
 #include <cpe/data_model.hpp>
 #include <cpe/deserialization/raw_parsing.hpp>
 
-#include <cstddef>
 #include <string>
 
 #include <gtest/gtest.h>
 
 namespace cpe {
-	namespace {
-		// Reads the string's characters as raw bytes, for comparing against file contents.
-		Bytes to_bytes(const std::string& s) {
-			Bytes bytes(s.size());
-			for (std::size_t i = 0; i < s.size(); ++i) {
-				bytes[i] = static_cast<std::byte>(s[i]);
-			}
-			return bytes;
-		}
-	} // namespace
-
 	// Non-empty input becomes a single-field record with the whole input as its value.
 	TEST(RawParsing, WrapsInputAsSingleRawField) {
 		RawParsing parser;

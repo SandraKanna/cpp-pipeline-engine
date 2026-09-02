@@ -28,15 +28,6 @@ namespace cpe {
 	// unit. Modern replacement for file-level `static`: prevents name collisions
 	// if another .cpp defines a symbol with the same name.
 	namespace {
-		// Reads the string's characters as raw bytes, for comparing against file contents.
-		Bytes to_bytes(const std::string& s) {
-			Bytes bytes(s.size());
-			for (std::size_t i = 0; i < s.size(); ++i) {
-				bytes[i] = static_cast<std::byte>(s[i]);
-			}
-			return bytes;
-		}
-
 		// Wraps a value as a successful expected. The error type is deduced from the
 		// call site (typically the return type expected by Return(...) in GMock).
 		// STUDY: template parameters have partial deduction. E must be given at the

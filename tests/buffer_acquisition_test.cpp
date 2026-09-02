@@ -1,13 +1,11 @@
 #include <cpe/acquisition/buffer_acquisition.hpp>
 #include <cpe/bytes.hpp>
 
-#include <cstddef>
-
 #include <gtest/gtest.h>
 
 namespace cpe {
 	TEST(BufferAcquisition, NotEmptyBufferLastCallIsEOF) {
-		Bytes data = {std::byte{'h'}, std::byte{'i'}};
+		Bytes data = to_bytes("hi");
 		BufferAcquisition buffer(std::move(data));
 		auto result = buffer.read();
 		ASSERT_TRUE(result.has_value());
@@ -26,7 +24,7 @@ namespace cpe {
 	}
 
 	TEST(BufferAcquisition, MultipleCallsAfterEOFReturnsEOF) {
-		Bytes data = {std::byte{'h'}, std::byte{'i'}};
+		Bytes data = to_bytes("hi");
 		BufferAcquisition buffer(std::move(data));
 		auto result = buffer.read();
 		ASSERT_TRUE(result.has_value());
