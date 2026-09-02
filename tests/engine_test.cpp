@@ -23,59 +23,59 @@ using ::testing::Return;
 // NOLINTNEXTLINE(bugprone-reserved-identifier)
 using ::testing::_;
 
-// STUDY: unnamed namespace = symbols are only visible within this translation
-// unit. Modern replacement for file-level `static`: prevents name collisions
-// if another .cpp defines a symbol with the same name.
-namespace {
-	// Reads the string's characters as raw bytes, for comparing against file contents.
-	cpe::Bytes to_bytes(const std::string& s) {
-		cpe::Bytes bytes(s.size());
-		for (std::size_t i = 0; i < s.size(); ++i) {
-			bytes[i] = static_cast<std::byte>(s[i]);
+namespace cpe {
+	// STUDY: unnamed namespace = symbols are only visible within this translation
+	// unit. Modern replacement for file-level `static`: prevents name collisions
+	// if another .cpp defines a symbol with the same name.
+	namespace {
+		// Reads the string's characters as raw bytes, for comparing against file contents.
+		Bytes to_bytes(const std::string& s) {
+			Bytes bytes(s.size());
+			for (std::size_t i = 0; i < s.size(); ++i) {
+				bytes[i] = static_cast<std::byte>(s[i]);
+			}
+			return bytes;
 		}
-		return bytes;
-	}
 
-	// Wraps a value as a successful expected. The error type is deduced from the
-	// call site (typically the return type expected by Return(...) in GMock).
-	// STUDY: template parameters have partial deduction. E must be given at the
-	// call site (success<PipelineError>(bytes)) because it does not appear in
-	// the argument. T is deduced from the argument's type.
-	template <typename E, typename T> nonstd::expected<T, E> success(T value) {
-		return nonstd::expected<T, E>(std::move(value));
-	}
-
-	// Wraps an error as a failed expected. The success type must be given
-	// explicitly since only the error is available.
-	// STUDY: mirror of success. T (the success type) has to be explicit because
-	// only the error is passed in; E is deduced from the argument.
-	template <typename T, typename E> nonstd::expected<T, E> failure(E error) {
-		return nonstd::expected<T, E>(nonstd::make_unexpected(std::move(error)));
-	}
-
-	// Builds a Record from a list of (name, value) pairs, in the given order.
-	// STUDY: initializer_list lets the caller write record_with({{"name", value},
-	// {"other", value}}) with brace-enclosed pairs. The order of insertion is
-	// preserved (relevant per ADR-003).
-	cpe::Record record_with(std::initializer_list<std::pair<std::string, cpe::Value>> fields) {
-		cpe::Record record;
-		for (const auto& [name, value] : fields) {
-			record.set(name, value);
+		// Wraps a value as a successful expected. The error type is deduced from the
+		// call site (typically the return type expected by Return(...) in GMock).
+		// STUDY: template parameters have partial deduction. E must be given at the
+		// call site (success<PipelineError>(bytes)) because it does not appear in
+		// the argument. T is deduced from the argument's type.
+		template <typename E, typename T> nonstd::expected<T, E> success(T value) {
+			return nonstd::expected<T, E>(std::move(value));
 		}
-		return record;
-	}
-} // namespace
 
-namespace cpe::test {
+		// Wraps an error as a failed expected. The success type must be given
+		// explicitly since only the error is available.
+		// STUDY: mirror of success. T (the success type) has to be explicit because
+		// only the error is passed in; E is deduced from the argument.
+		template <typename T, typename E> nonstd::expected<T, E> failure(E error) {
+			return nonstd::expected<T, E>(nonstd::make_unexpected(std::move(error)));
+		}
+
+		// Builds a Record from a list of (name, value) pairs, in the given order.
+		// STUDY: initializer_list lets the caller write record_with({{"name", value},
+		// {"other", value}}) with brace-enclosed pairs. The order of insertion is
+		// preserved (relevant per ADR-003).
+		Record record_with(std::initializer_list<std::pair<std::string, Value>> fields) {
+			Record record;
+			for (const auto& [name, value] : fields) {
+				record.set(name, value);
+			}
+			return record;
+		}
+	} // namespace
+
 	class EngineTest : public ::testing::Test {
 	protected:
 		// STUDY: the SetUp runs before each TEST_F, giving every test a fresh
 		// set of mocks. Tests use the raw pointers to program EXPECT_CALLs; the
 		// unique_ptrs stay alive until the test moves them into the engine.
 		void SetUp() override {
-			acquisition_owned = std::make_unique<MockBytesAcquisition>();
-			delimitation_owned = std::make_unique<MockRecordDelimitation>();
-			parsing_owned = std::make_unique<MockRecordParsing>();
+			acquisition_owned = std::make_unique<test::MockBytesAcquisition>();
+			delimitation_owned = std::make_unique<test::MockRecordDelimitation>();
+			parsing_owned = std::make_unique<test::MockRecordParsing>();
 			acquisition = acquisition_owned.get();
 			delimitation = delimitation_owned.get();
 			parsing = parsing_owned.get();
@@ -84,12 +84,12 @@ namespace cpe::test {
 		// STUDY: the owned unique_ptrs will be moved into the engine at
 		// construction time; after that move, only the raw pointers remain
 		// usable for interacting with the mocks.
-		std::unique_ptr<MockBytesAcquisition> acquisition_owned;
-		std::unique_ptr<MockRecordDelimitation> delimitation_owned;
-		std::unique_ptr<MockRecordParsing> parsing_owned;
-		MockBytesAcquisition* acquisition = nullptr;
-		MockRecordDelimitation* delimitation = nullptr;
-		MockRecordParsing* parsing = nullptr;
+		std::unique_ptr<test::MockBytesAcquisition> acquisition_owned;
+		std::unique_ptr<test::MockRecordDelimitation> delimitation_owned;
+		std::unique_ptr<test::MockRecordParsing> parsing_owned;
+		test::MockBytesAcquisition* acquisition = nullptr;
+		test::MockRecordDelimitation* delimitation = nullptr;
+		test::MockRecordParsing* parsing = nullptr;
 	};
 
 	// Happy path: one chunk from acquisition, one delimited record,
@@ -513,4 +513,4 @@ namespace cpe::test {
 		EXPECT_EQ(order_log, (std::vector<std::string>{"transform", "filter", "validate"}));
 	}
 
-} // namespace cpe::test
+} // namespace cpe
