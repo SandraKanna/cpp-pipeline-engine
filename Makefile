@@ -47,7 +47,7 @@ TIDY_SRC = src/data_model.cpp src/acquisition/buffer_acquisition.cpp src/acquisi
 		   src/deserialization/line_delimitation.cpp src/deserialization/raw_parsing.cpp src/processing/processing.cpp \
 		   src/serialization/raw_serialization.cpp src/engine.cpp \
 		   tests/data_model_test.cpp tests/buffer_acquisition_test.cpp tests/file_acquisition_test.cpp \
-		   tests/line_delimitation_test.cpp tests/raw_parsing_test.cpp tests/engine_test.cpp
+		   tests/line_delimitation_test.cpp tests/raw_parsing_test.cpp tests/raw_serialization_test.cpp tests/engine_test.cpp
 
 # static analysis: likely bugs, modernization opportunities, performance issues, and
 # naming/readability conventions. It needs the compilation database (from a configured build)

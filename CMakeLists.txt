@@ -67,6 +67,7 @@ if(CPE_BUILD_TESTS)
         tests/file_acquisition_test.cpp
         tests/line_delimitation_test.cpp
         tests/raw_parsing_test.cpp
+        tests/raw_serialization_test.cpp
         tests/engine_test.cpp)
     target_link_libraries(cpe_tests PRIVATE cpe_core GTest::gmock_main)
 
