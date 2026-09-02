@@ -16,6 +16,7 @@ add_library(cpe_core
     src/deserialization/line_delimitation.cpp
     src/deserialization/raw_parsing.cpp
     src/processing/processing.cpp
+    src/serialization/raw_serialization.cpp
     src/engine.cpp)
 
 target_compile_features(cpe_core PUBLIC cxx_std_20)
