@@ -18,6 +18,7 @@ add_library(cpe_core
     src/deserialization/raw_parsing.cpp
     src/processing/processing.cpp
     src/serialization/raw_serialization.cpp
+    src/delivery/buffer_delivery.cpp
     src/engine.cpp)
 
 target_compile_features(cpe_core PUBLIC cxx_std_20)
@@ -69,6 +70,7 @@ if(CPE_BUILD_TESTS)
         tests/line_delimitation_test.cpp
         tests/raw_parsing_test.cpp
         tests/raw_serialization_test.cpp
+        tests/buffer_delivery_test.cpp
         tests/engine_test.cpp)
     target_link_libraries(cpe_tests PRIVATE cpe_core GTest::gmock_main)
 
