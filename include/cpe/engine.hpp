@@ -1,14 +1,16 @@
 #pragma once
 
-#include <cpe/acquisition/bytes_acquisition.hpp>
 #include <cpe/bytes.hpp>
 #include <cpe/data_model.hpp>
-#include <cpe/deserialization/record_delimitation.hpp>
-#include <cpe/deserialization/record_parsing.hpp>
 #include <cpe/error/error_policy.hpp>
 #include <cpe/error/pipeline_error.hpp>
-#include <cpe/error/record_error.hpp>
+
+#include <cpe/acquisition/bytes_acquisition.hpp>
+#include <cpe/delivery/bytes_delivery.hpp>
+#include <cpe/deserialization/record_delimitation.hpp>
+#include <cpe/deserialization/record_parsing.hpp>
 #include <cpe/processing/processing.hpp>
+#include <cpe/serialization/record_serialization.hpp>
 
 #include <nonstd/expected.hpp> // nonstd::expected
 
@@ -24,30 +26,38 @@ namespace cpe {
 	/// and applies them in order to each record (ADR-014, ADR-016).
 	using Processing = std::variant<RecordValidation, RecordFiltering, RecordTransformation>;
 
+	/// Outcome of a single step of the engine.
+	/// Delivered: a record moved through the chain to delivery.
+	/// EndOfStream: acquisition is exhausted, no more records will come.
+	enum class Status : std::uint8_t { Delivered, EndOfStream };
+
 	/// Orchestrates the pipeline chain (acquisition, delimitation, parsing,
-	/// processing) under the pull-based, one-record-at-a-time, blocking
-	/// execution model (ADR-005, ADR-006, ADR-007). The engine mediates
-	/// between components: each collaborator receives its input as a parameter,
-	/// not by reference to the upstream component.
+	/// processing, serialization, delivery) under the pull-based,
+	/// one-record-at-a-time, blocking execution model (ADR-005, ADR-006,
+	/// ADR-007). The engine mediates between components: each collaborator
+	/// receives its input as a parameter, not by reference to the upstream
+	/// component.
 	class Engine {
 	public:
 		Engine(std::unique_ptr<BytesAcquisition> acquisition,
 		       std::unique_ptr<RecordDelimitation> delimitation,
-		       std::unique_ptr<RecordParsing> parsing, std::vector<Processing> processing = {},
-		       ErrorPolicy policy = ErrorPolicy::FailFast);
+		       std::unique_ptr<RecordParsing> parsing, std::vector<Processing> processing,
+		       std::unique_ptr<RecordSerialization> serialization,
+		       std::unique_ptr<BytesDelivery> delivery, ErrorPolicy policy = ErrorPolicy::FailFast);
 
-		/// Returns the next record produced by the chain.
-		/// A Record wrapped in optional: the next record is available.
-		/// nullopt: end of stream reached, not an error.
-		/// PipelineError: acquisition or delimitation failed, or a record error
-		/// from parsing or validation was promoted under FailFast (ADR-012, ADR-013).
-		nonstd::expected<std::optional<Record>, PipelineError> next();
+		/// Advances the pipeline by one record.
+		/// PipelineError: acquisition, delimitation, serialization or delivery failed,
+		/// or a record error from parsing, validation or serialization was promoted
+		/// under FailFast (ADR-012, ADR-013).
+		nonstd::expected<Status, PipelineError> next();
 
 	private:
 		std::unique_ptr<BytesAcquisition> acquisition_;
 		std::unique_ptr<RecordDelimitation> delimitation_;
 		std::unique_ptr<RecordParsing> parsing_;
 		std::vector<Processing> processing_steps_;
+		std::unique_ptr<RecordSerialization> serialization_;
+		std::unique_ptr<BytesDelivery> delivery_;
 
 		/// Delimited records produced by delimit() but not yet parsed.
 		/// A single delimit() call may return several records; next()
@@ -73,5 +83,14 @@ namespace cpe {
 		/// policy on validation failure. Returns nullopt if the record was
 		/// dropped (filter drop, or validation under Skip).
 		nonstd::expected<std::optional<Record>, PipelineError> apply_processing(Record record);
+
+		/// Serializes a record into bytes, applying the error policy on
+		/// failure. Returns nullopt if the record was dropped under Skip.
+		nonstd::expected<std::optional<Bytes>, PipelineError> serialize(Record record);
+
+		/// Delivers bytes to the destination. Delivery failures are always
+		/// PipelineError (ADR-012): the destination is a shared resource
+		/// whose failure blocks the pipeline.
+		nonstd::expected<void, PipelineError> deliver(Bytes bytes);
 	};
 } // namespace cpe

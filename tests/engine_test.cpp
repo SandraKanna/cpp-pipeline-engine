@@ -6,8 +6,10 @@
 #include <cpe/error/record_error.hpp>
 
 #include "mocks/mock_bytes_acquisition.hpp"
+#include "mocks/mock_bytes_delivery.hpp"
 #include "mocks/mock_record_delimitation.hpp"
 #include "mocks/mock_record_parsing.hpp"
+#include "mocks/mock_record_serialization.hpp"
 
 #include <nonstd/expected.hpp> // nonstd::expected, nonstd::make_unexpected
 
@@ -70,6 +72,17 @@ namespace cpe {
 			acquisition = acquisition_owned.get();
 			delimitation = delimitation_owned.get();
 			parsing = parsing_owned.get();
+			serialization_owned = std::make_unique<test::MockRecordSerialization>();
+			delivery_owned = std::make_unique<test::MockBytesDelivery>();
+			serialization = serialization_owned.get();
+			delivery = delivery_owned.get();
+
+			ON_CALL(*serialization, serialize(::testing::_)).WillByDefault([](const Record&) {
+				return nonstd::expected<Bytes, RecordError>{Bytes{}};
+			});
+			ON_CALL(*delivery, deliver(::testing::_)).WillByDefault([](const Bytes&) {
+				return nonstd::expected<void, PipelineError>{};
+			});
 		}
 
 		// STUDY: the owned unique_ptrs will be moved into the engine at
@@ -81,6 +94,10 @@ namespace cpe {
 		test::MockBytesAcquisition* acquisition = nullptr;
 		test::MockRecordDelimitation* delimitation = nullptr;
 		test::MockRecordParsing* parsing = nullptr;
+		std::unique_ptr<test::MockRecordSerialization> serialization_owned;
+		std::unique_ptr<test::MockBytesDelivery> delivery_owned;
+		test::MockRecordSerialization* serialization = nullptr;
+		test::MockBytesDelivery* delivery = nullptr;
 	};
 
 	// Happy path: one chunk from acquisition, one delimited record,
@@ -100,16 +117,14 @@ namespace cpe {
 
 		// STUDY: build the engine, giving it ownership of the components
 		Engine engine(std::move(acquisition_owned), std::move(delimitation_owned),
-		              std::move(parsing_owned), {}, ErrorPolicy::FailFast);
+		              std::move(parsing_owned), {}, std::move(serialization_owned),
+		              std::move(delivery_owned), ErrorPolicy::FailFast);
 
 		// STUDY: the engine should call the components and return what was programmed
 		auto result = engine.next();
 
 		ASSERT_TRUE(result.has_value());
-		ASSERT_TRUE(result.value().has_value());
-		// NOLINTNEXTLINE(bugprone-unchecked-optional-access): guarded by ASSERT_TRUE above
-		const auto& record = *result.value();
-		EXPECT_EQ(record, expected_record);
+		EXPECT_EQ(result.value(), Status::Delivered);
 	}
 
 	// Happy path: multiple records per chunk. Acquisition returns one chunk that delimit()
@@ -133,29 +148,21 @@ namespace cpe {
 		    .WillOnce(Return(success<RecordError>(expected_record_3)));
 
 		Engine engine(std::move(acquisition_owned), std::move(delimitation_owned),
-		              std::move(parsing_owned), {}, ErrorPolicy::FailFast);
+		              std::move(parsing_owned), {}, std::move(serialization_owned),
+		              std::move(delivery_owned), ErrorPolicy::FailFast);
 
 		auto result_1 = engine.next();
 		auto result_2 = engine.next();
 		auto result_3 = engine.next();
 
 		ASSERT_TRUE(result_1.has_value());
-		ASSERT_TRUE(result_1.value().has_value());
-		// NOLINTNEXTLINE(bugprone-unchecked-optional-access): guarded by ASSERT_TRUE above
-		const auto& record1 = *result_1.value();
-		EXPECT_EQ(record1, expected_record_1);
+		EXPECT_EQ(result_1.value(), Status::Delivered);
 
 		ASSERT_TRUE(result_2.has_value());
-		ASSERT_TRUE(result_2.value().has_value());
-		// NOLINTNEXTLINE(bugprone-unchecked-optional-access): guarded by ASSERT_TRUE above
-		const auto& record2 = *result_2.value();
-		EXPECT_EQ(record2, expected_record_2);
+		EXPECT_EQ(result_2.value(), Status::Delivered);
 
 		ASSERT_TRUE(result_3.has_value());
-		ASSERT_TRUE(result_3.value().has_value());
-		// NOLINTNEXTLINE(bugprone-unchecked-optional-access): guarded by ASSERT_TRUE above
-		const auto& record3 = *result_3.value();
-		EXPECT_EQ(record3, expected_record_3);
+		EXPECT_EQ(result_3.value(), Status::Delivered);
 	}
 
 	// Normal EOS. Acquisition returns empty chunk. The engine calls delimit()
@@ -177,19 +184,17 @@ namespace cpe {
 		EXPECT_CALL(*parsing, parse(_)).WillOnce(Return(success<RecordError>(expected_record_1)));
 
 		Engine engine(std::move(acquisition_owned), std::move(delimitation_owned),
-		              std::move(parsing_owned), {}, ErrorPolicy::FailFast);
+		              std::move(parsing_owned), {}, std::move(serialization_owned),
+		              std::move(delivery_owned), ErrorPolicy::FailFast);
 
 		auto result_1 = engine.next();
 		auto result_2 = engine.next();
 
 		ASSERT_TRUE(result_1.has_value());
-		ASSERT_TRUE(result_1.value().has_value());
-		// NOLINTNEXTLINE(bugprone-unchecked-optional-access): guarded by ASSERT_TRUE above
-		const auto& record1 = *result_1.value();
-		EXPECT_EQ(record1, expected_record_1);
+		EXPECT_EQ(result_1.value(), Status::Delivered);
 
 		ASSERT_TRUE(result_2.has_value());
-		EXPECT_FALSE(result_2.value().has_value());
+		EXPECT_EQ(result_2.value(), Status::EndOfStream);
 	}
 
 	// Acquisition returns PipelineError. next() propagates it as-is.
@@ -200,7 +205,8 @@ namespace cpe {
 		EXPECT_CALL(*acquisition, read()).WillOnce(Return(failure<Bytes>(error)));
 
 		Engine engine(std::move(acquisition_owned), std::move(delimitation_owned),
-		              std::move(parsing_owned), {}, ErrorPolicy::FailFast);
+		              std::move(parsing_owned), {}, std::move(serialization_owned),
+		              std::move(delivery_owned), ErrorPolicy::FailFast);
 
 		auto result = engine.next();
 
@@ -222,7 +228,8 @@ namespace cpe {
 		    .WillOnce(Return(failure<std::vector<Bytes>>(error)));
 
 		Engine engine(std::move(acquisition_owned), std::move(delimitation_owned),
-		              std::move(parsing_owned), {}, ErrorPolicy::FailFast);
+		              std::move(parsing_owned), {}, std::move(serialization_owned),
+		              std::move(delivery_owned), ErrorPolicy::FailFast);
 
 		auto result = engine.next();
 
@@ -244,7 +251,8 @@ namespace cpe {
 		EXPECT_CALL(*parsing, parse(_)).WillOnce(Return(failure<Record>(RecordError{})));
 
 		Engine engine(std::move(acquisition_owned), std::move(delimitation_owned),
-		              std::move(parsing_owned), {}, ErrorPolicy::FailFast);
+		              std::move(parsing_owned), {}, std::move(serialization_owned),
+		              std::move(delivery_owned), ErrorPolicy::FailFast);
 
 		auto result = engine.next();
 
@@ -271,15 +279,13 @@ namespace cpe {
 		    .WillOnce(Return(success<RecordError>(expected_record_2)));
 
 		Engine engine(std::move(acquisition_owned), std::move(delimitation_owned),
-		              std::move(parsing_owned), {}, ErrorPolicy::Skip);
+		              std::move(parsing_owned), {}, std::move(serialization_owned),
+		              std::move(delivery_owned), ErrorPolicy::Skip);
 
 		auto result = engine.next();
 
 		ASSERT_TRUE(result.has_value());
-		ASSERT_TRUE(result.value().has_value());
-		// NOLINTNEXTLINE(bugprone-unchecked-optional-access): guarded by ASSERT_TRUE above
-		const auto& record = *result.value();
-		EXPECT_EQ(record, expected_record_2);
+		EXPECT_EQ(result.value(), Status::Delivered);
 	}
 
 	// After the first nullopt, further next() calls stay nullopt without
@@ -291,16 +297,17 @@ namespace cpe {
 		    .WillOnce(Return(success<PipelineError>(std::vector<Bytes>{})));
 
 		Engine engine(std::move(acquisition_owned), std::move(delimitation_owned),
-		              std::move(parsing_owned), {}, ErrorPolicy::FailFast);
+		              std::move(parsing_owned), {}, std::move(serialization_owned),
+		              std::move(delivery_owned), ErrorPolicy::FailFast);
 
 		auto result_1 = engine.next();
 		auto result_2 = engine.next();
 
 		ASSERT_TRUE(result_1.has_value());
-		EXPECT_FALSE(result_1.value().has_value());
+		EXPECT_EQ(result_1.value(), Status::EndOfStream);
 
 		ASSERT_TRUE(result_2.has_value());
-		EXPECT_FALSE(result_2.value().has_value());
+		EXPECT_EQ(result_2.value(), Status::EndOfStream);
 	}
 
 	// A record passes through an empty processing chain unchanged.
@@ -317,15 +324,13 @@ namespace cpe {
 		EXPECT_CALL(*parsing, parse(_)).WillOnce(Return(success<RecordError>(expected_record)));
 
 		Engine engine(std::move(acquisition_owned), std::move(delimitation_owned),
-		              std::move(parsing_owned), {}, ErrorPolicy::FailFast);
+		              std::move(parsing_owned), {}, std::move(serialization_owned),
+		              std::move(delivery_owned), ErrorPolicy::FailFast);
 
 		auto result = engine.next();
 
 		ASSERT_TRUE(result.has_value());
-		ASSERT_TRUE(result.value().has_value());
-		// NOLINTNEXTLINE(bugprone-unchecked-optional-access): guarded by ASSERT_TRUE above
-		const auto& record = *result.value();
-		EXPECT_EQ(record, expected_record);
+		EXPECT_EQ(result.value(), Status::Delivered);
 	}
 
 	// A transformation replaces the record with its result. The record that
@@ -348,18 +353,14 @@ namespace cpe {
 		}});
 
 		Engine engine(std::move(acquisition_owned), std::move(delimitation_owned),
-		              std::move(parsing_owned), std::move(processing), ErrorPolicy::FailFast);
+		              std::move(parsing_owned), std::move(processing),
+		              std::move(serialization_owned), std::move(delivery_owned),
+		              ErrorPolicy::FailFast);
 
 		auto result = engine.next();
 
-		Record expected_record = record_with({{"raw", std::string{"hi"}}});
-		expected_record.set("added", std::string{"yes"});
-
 		ASSERT_TRUE(result.has_value());
-		ASSERT_TRUE(result.value().has_value());
-		// NOLINTNEXTLINE(bugprone-unchecked-optional-access): guarded by ASSERT_TRUE above
-		const auto& record = *result.value();
-		EXPECT_EQ(record, expected_record);
+		EXPECT_EQ(result.value(), Status::Delivered);
 	}
 
 	// A filter that returns false drops the record silently (no error). next()
@@ -389,15 +390,14 @@ namespace cpe {
 		}});
 
 		Engine engine(std::move(acquisition_owned), std::move(delimitation_owned),
-		              std::move(parsing_owned), std::move(processing), ErrorPolicy::FailFast);
+		              std::move(parsing_owned), std::move(processing),
+		              std::move(serialization_owned), std::move(delivery_owned),
+		              ErrorPolicy::FailFast);
 
 		auto result = engine.next();
 
 		ASSERT_TRUE(result.has_value());
-		ASSERT_TRUE(result.value().has_value());
-		// NOLINTNEXTLINE(bugprone-unchecked-optional-access): guarded by ASSERT_TRUE above
-		const auto& record = *result.value();
-		EXPECT_EQ(record, record_kept);
+		EXPECT_EQ(result.value(), Status::Delivered);
 	}
 
 	// A validation that returns false is a record error. Under FailFast it is
@@ -418,7 +418,9 @@ namespace cpe {
 		processing.emplace_back(RecordValidation{[](const Record&) { return false; }});
 
 		Engine engine(std::move(acquisition_owned), std::move(delimitation_owned),
-		              std::move(parsing_owned), std::move(processing), ErrorPolicy::FailFast);
+		              std::move(parsing_owned), std::move(processing),
+		              std::move(serialization_owned), std::move(delivery_owned),
+		              ErrorPolicy::FailFast);
 
 		auto result = engine.next();
 
@@ -454,15 +456,13 @@ namespace cpe {
 		}});
 
 		Engine engine(std::move(acquisition_owned), std::move(delimitation_owned),
-		              std::move(parsing_owned), std::move(processing), ErrorPolicy::Skip);
+		              std::move(parsing_owned), std::move(processing),
+		              std::move(serialization_owned), std::move(delivery_owned), ErrorPolicy::Skip);
 
 		auto result = engine.next();
 
 		ASSERT_TRUE(result.has_value());
-		ASSERT_TRUE(result.value().has_value());
-		// NOLINTNEXTLINE(bugprone-unchecked-optional-access): guarded by ASSERT_TRUE above
-		const auto& record = *result.value();
-		EXPECT_EQ(record, record_valid);
+		EXPECT_EQ(result.value(), Status::Delivered);
 	}
 
 	// Processing steps run in the order they appear in the vector. A shared
@@ -495,12 +495,14 @@ namespace cpe {
 		}});
 
 		Engine engine(std::move(acquisition_owned), std::move(delimitation_owned),
-		              std::move(parsing_owned), std::move(processing), ErrorPolicy::FailFast);
+		              std::move(parsing_owned), std::move(processing),
+		              std::move(serialization_owned), std::move(delivery_owned),
+		              ErrorPolicy::FailFast);
 
 		auto result = engine.next();
 
 		ASSERT_TRUE(result.has_value());
-		ASSERT_TRUE(result.value().has_value());
+		EXPECT_EQ(result.value(), Status::Delivered);
 		EXPECT_EQ(order_log, (std::vector<std::string>{"transform", "filter", "validate"}));
 	}
 

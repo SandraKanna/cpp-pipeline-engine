@@ -1,13 +1,16 @@
 #include <cpe/engine.hpp>
 
-#include <cpe/acquisition/bytes_acquisition.hpp>
 #include <cpe/bytes.hpp>
 #include <cpe/data_model.hpp>
-#include <cpe/deserialization/record_delimitation.hpp>
-#include <cpe/deserialization/record_parsing.hpp>
 #include <cpe/error/error_policy.hpp>
 #include <cpe/error/pipeline_error.hpp>
+
+#include <cpe/acquisition/bytes_acquisition.hpp>
+#include <cpe/delivery/bytes_delivery.hpp>
+#include <cpe/deserialization/record_delimitation.hpp>
+#include <cpe/deserialization/record_parsing.hpp>
 #include <cpe/processing/processing.hpp>
+#include <cpe/serialization/record_serialization.hpp>
 
 #include <nonstd/expected.hpp> // nonstd::expected, nonstd::make_unexpected
 
@@ -23,11 +26,14 @@ namespace cpe {
 	Engine::Engine(std::unique_ptr<BytesAcquisition> acquisition,
 	               std::unique_ptr<RecordDelimitation> delimitation,
 	               std::unique_ptr<RecordParsing> parsing, std::vector<Processing> processing,
-	               ErrorPolicy policy)
+	               std::unique_ptr<RecordSerialization> serialization,
+	               std::unique_ptr<BytesDelivery> delivery, ErrorPolicy policy)
 	    : acquisition_(std::move(acquisition)), delimitation_(std::move(delimitation)),
-	      parsing_(std::move(parsing)), processing_steps_(std::move(processing)), policy_(policy) {}
+	      parsing_(std::move(parsing)), processing_steps_(std::move(processing)),
+	      serialization_(std::move(serialization)), delivery_(std::move(delivery)),
+	      policy_(policy) {}
 
-	nonstd::expected<std::optional<Record>, PipelineError> Engine::next() {
+	nonstd::expected<Status, PipelineError> Engine::next() {
 		while (true) {
 
 			auto raw = pull_delimited();
@@ -35,7 +41,7 @@ namespace cpe {
 				return nonstd::make_unexpected(std::move(raw).error());
 			}
 			if (!raw.value().has_value()) {
-				return std::nullopt; // end of stream
+				return Status::EndOfStream;
 			}
 
 			auto parsed = parse(std::move(raw).value().value());
@@ -54,7 +60,20 @@ namespace cpe {
 				continue; // dropped by filter or validation under Skip
 			}
 
-			return std::move(processed).value();
+			auto bytes = serialize(std::move(processed).value().value());
+			if (!bytes.has_value()) {
+				return nonstd::make_unexpected(std::move(bytes).error());
+			}
+			if (!bytes.value().has_value()) {
+				continue; // dropped by policy
+			}
+
+			auto delivered = deliver(std::move(bytes).value().value());
+			if (!delivered.has_value()) {
+				return nonstd::make_unexpected(std::move(delivered).error());
+			}
+
+			return Status::Delivered;
 		}
 	}
 
@@ -152,5 +171,25 @@ namespace cpe {
 			}
 		}
 		return std::optional<Record>{std::move(record)};
+	}
+
+	nonstd::expected<std::optional<Bytes>, PipelineError> Engine::serialize(Record record) {
+		auto serialized = serialization_->serialize(std::move(record));
+		if (serialized.has_value()) {
+			return std::optional<Bytes>{std::move(serialized).value()};
+		}
+		if (policy_ == ErrorPolicy::Skip) {
+			return std::optional<Bytes>{};
+		}
+		// FailFast: promote the RecordError to a PipelineError (ADR-013).
+		// RecordError is empty today; the message will be refined once
+		// it carries structured context.
+		return nonstd::make_unexpected(
+		    PipelineError{.code = std::make_error_code(std::errc::protocol_error),
+		                  .message = "record serialization failed"});
+	}
+
+	nonstd::expected<void, PipelineError> Engine::deliver(Bytes bytes) {
+		return delivery_->deliver(std::move(bytes));
 	}
 } // namespace cpe
